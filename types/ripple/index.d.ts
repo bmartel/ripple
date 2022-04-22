@@ -40,5 +40,5 @@ export declare type AtomValue<V extends AtomSnapshot> = V[Keys.Value];
 export declare type AtomSet<V extends AtomSnapshot> = (u: Setter<V[Keys.Value]>) => void;
 export declare type AtomReducer<V extends AtomSnapshot> = (v: V, u: V) => V;
 export declare const atom: <T = any>(value: T) => Atom<T>;
-export declare const useAtom: <T extends unknown, A extends Atom<T>>(atom: A, reducer?: AtomReducer<A> | undefined) => [AtomValue<A>, AtomSet<A>];
+export declare const useAtom: <T, A extends Atom<T>>(atom: A, reducer?: AtomReducer<A> | undefined) => [AtomValue<A>, AtomSet<A>];
 export {};

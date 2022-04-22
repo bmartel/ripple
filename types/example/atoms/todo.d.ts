@@ -3,5 +3,5 @@ interface ITodo {
     content: string;
     completedAt: number;
 }
-export declare const todoAtom: import("../ripple").Atom<ITodo>;
+export declare const todoAtom: import("../../ripple").Atom<ITodo>;
 export {};

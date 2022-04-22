@@ -12,8 +12,9 @@
   },
   "types": "./types/ripple/index.d.ts",
   "files": [
-    "dist",
-    "types"
+    "dist/ripple.es.js",
+    "dist/ripple.umd.js",
+    "types/ripple"
   ],
   "scripts": {
     "dev": "vite",

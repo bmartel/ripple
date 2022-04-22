@@ -1,6 +1,6 @@
 import { html, component } from 'haunted'
 import { todoAtom } from '../atoms/todo'
-import { useAtom } from '../ripple'
+import { useAtom } from '../../ripple'
 
 function Todo() {
   const [todo, setTodo] = useAtom(todoAtom)

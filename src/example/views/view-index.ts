@@ -1,5 +1,5 @@
 import { html, component } from 'haunted'
-import { useAtom } from '../ripple'
+import { useAtom } from '../../ripple'
 
 import { todoAtom } from '../atoms/todo'
 import '../elements/todo'

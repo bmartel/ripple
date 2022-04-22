@@ -1,4 +1,4 @@
-import { atom } from '../ripple'
+import { atom } from '../../ripple'
 
 interface ITodo {
   title: string
