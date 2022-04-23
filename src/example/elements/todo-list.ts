@@ -5,11 +5,19 @@ import { useAtomList } from '../../ripple'
 import './todo'
 
 function TodoList() {
-  const [todos, setTodos] = useAtomList(todoListAtom, true)
+  const [todos, setTodos] = useAtomList(todoListAtom)
 
   useEffect(() => {
     setTimeout(() => {
-      setTodos([{ id: '1', title: 'That works?', content: '', completedAt: Date.now() }])
+      setTodos((prev) => {
+        const update = prev.find(({ id }) => id === '1')
+        if (update) {
+          update.title = 'That works?'
+          update.completedAt = Date.now()
+        }
+        prev.splice(1)
+        return prev
+      })
     }, 1500)
   }, [])
 
@@ -24,8 +32,8 @@ function TodoList() {
     ${todos
       ? repeat(
           todos as any,
-          (t: any) => t?.id,
-          (t: any) => html`<r-todo .todoId=${t?.id}></r-todo>`,
+          (t: any) => t,
+          (t: any) => html`<r-todo .todoId=${t}></r-todo>`,
         )
       : ''}
   `

@@ -28,3 +28,12 @@ export const todoListAtom = atomList<ITodo>([
     completedAt: 0,
   },
 ])
+
+// if (__DEV__) {
+//   var registeredAtoms = new Map<string, Atom | AtomList>()
+// }
+// export const devtools = (_atom: Atom | AtomList, label: string): void => {
+//   if (__DEV__) {
+//     registeredAtoms.set(label, _atom)
+//   }
+// }
