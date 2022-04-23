@@ -5,7 +5,7 @@ import { useAtomList } from '../../ripple'
 import './todo'
 
 function TodoList() {
-  const [todos, setTodos] = useAtomList(todoListAtom)
+  const [todos, setTodos] = useAtomList(todoListAtom, true)
 
   useEffect(() => {
     setTimeout(() => {
@@ -13,6 +13,7 @@ function TodoList() {
     }, 1500)
   }, [])
 
+  console.log({ todos })
   return html`
     <style>
       :host {
@@ -22,9 +23,9 @@ function TodoList() {
     </style>
     ${todos
       ? repeat(
-          todos,
-          (id: string) => id,
-          (id: string) => html`<r-todo .todoId=${id}></r-todo>`,
+          todos as any,
+          (t: any) => t?.id,
+          (t: any) => html`<r-todo .todoId=${t?.id}></r-todo>`,
         )
       : ''}
   `

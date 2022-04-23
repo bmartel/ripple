@@ -57,8 +57,21 @@ export type AtomValue<V extends AtomSnapshot> = V[Keys.Value]
 export type AtomUpdate<V extends AtomSnapshot> = (u: Write<V[Keys.Value]>) => void
 export type AtomReducer<V extends AtomSnapshot> = (v: V, u: V) => V
 
+const state = new WeakMap<Atom | AtomList, Atom | AtomList>()
+const atomGet = <T = any>(atom: Atom<T> | AtomList<T>): Atom<T> | AtomList<T> | undefined => state.get(atom)
+const atomSet = <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomList<T>): void => {
+  state.set(atom, v)
+}
+
+export const atomGetValue = <T extends AtomSnapshot>(atom: Atom<T> | AtomList<T>): AtomValue<T> | undefined =>
+  state.get(atom)?.[Keys.Value]
+export const atomSetValue = <T = any>(atom: Atom<T> | AtomList<T>, v: T): void => {
+  const _current = atomGet<T>(atom)!
+  _current[Keys.Value] = v
+}
+
 export const atom = <T = any>(value: T): Atom<T> => {
-  return {
+  const _atom = {
     [ReconcileId]: null,
     [HistoryId]: new CustomSet(),
     [DependentsId]: new CustomSet(),
@@ -66,6 +79,8 @@ export const atom = <T = any>(value: T): Atom<T> => {
     [Keys.Value]: value,
     [Keys.CommitVersion]: 0,
   }
+  atomSet(_atom, _atom)
+  return _atom
 }
 
 export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
@@ -84,50 +99,57 @@ export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc):
   _atomList[Keys.ListValue] = atomListValue
   _atomList[MapperId] = idMapper
 
+  atomSet(_atomList, _atomList)
+
   return _atomList
 }
 
 export const useAtom = <T, A extends Atom<T>>(
-  atom: A,
-  reducer?: AtomReducer<typeof atom>,
-): [AtomValue<typeof atom>, AtomUpdate<typeof atom>] => {
-  const atomState = useRef<typeof atom>(atom)
-  const [atomValue, setAtomValue] = useState(() => atom[Keys.Value])
+  _atom: A,
+  reducer?: AtomReducer<typeof _atom>,
+): [AtomValue<typeof _atom>, AtomUpdate<typeof _atom>] => {
+  const [atomValue, setAtomValue] = useState(() => atomGetValue(_atom as any) as unknown as typeof _atom[Keys.Value])
 
   const readAtomState = useMemo(
     () => ({
-      [Keys.Read]: () => setAtomValue(atomState.current[Keys.Value]),
+      [Keys.Read]: () => setAtomValue(atomGetValue(_atom as any) as unknown as typeof _atom[Keys.Value]),
     }),
     // eslint-disable-next-line
     [],
   )
 
-  const writeAtomState = useMemo<AtomUpdate<typeof atom>>(
+  const writeAtomState = useMemo<AtomUpdate<typeof _atom>>(
     () => (u) => {
-      let next: AtomValue<typeof atom>
+      let next: AtomValue<typeof _atom>
+
+      const _current = atomGet(_atom) as typeof _atom
+
+      if (!_current) return
+
       if (typeof u === 'function') {
-        next = (u as any)(atomState.current[Keys.Value])
+        next = (u as any)(_current)
       } else {
         next = u
       }
-      if (next !== atomState.current[Keys.Value]) {
-        atomState.current[HistoryId].add({ [Keys.Value]: next, [Keys.CommitVersion]: ++atomState.current[VersionId] })
-        if (atomState.current[ReconcileId]) clearTimeout(atomState.current[ReconcileId])
-        atomState.current[ReconcileId] = setTimeout(() => {
+      if (next !== _current[Keys.Value]) {
+        _current[HistoryId].add({ [Keys.Value]: next, [Keys.CommitVersion]: ++_current[VersionId] })
+        if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
+        _current[ReconcileId] = setTimeout(() => {
           const update = reducer
-            ? Array.from(atomState.current[HistoryId]).reduce(reducer as any, {
-                [Keys.Value]: atomState.current[Keys.Value],
-                [Keys.CommitVersion]: atomState.current[Keys.CommitVersion],
+            ? Array.from(_current[HistoryId]).reduce(reducer as any, {
+                [Keys.Value]: _current[Keys.Value],
+                [Keys.CommitVersion]: _current[Keys.CommitVersion],
               })
-            : atomState.current[HistoryId][LastId]
+            : _current[HistoryId][LastId]
           if (update) {
-            atomState.current[HistoryId].clear()
-            atomState.current[Keys.Value] = update[Keys.Value]
-            atomState.current[Keys.CommitVersion] = update[Keys.CommitVersion]
+            _current[HistoryId].clear()
+            _current[Keys.Value] = update[Keys.Value]
+            _current[Keys.CommitVersion] = update[Keys.CommitVersion]
+
             if (process.env.NODE_ENV !== 'production') {
-              console.log(JSON.parse(JSON.stringify(atomState.current)))
+              console.log(JSON.parse(JSON.stringify(_atom)))
             }
-            for (const dependent of atomState.current[DependentsId]) {
+            for (const dependent of _current[DependentsId]) {
               dependent[Keys.Read]()
             }
           }
@@ -139,60 +161,81 @@ export const useAtom = <T, A extends Atom<T>>(
   )
 
   useEffect(() => {
-    atomState.current[DependentsId].add(readAtomState)
+    const _current = atomGet(_atom) as typeof _atom
+    _current?.[DependentsId]?.add(readAtomState)
     return () => {
-      atomState.current[DependentsId].delete(readAtomState)
+      const _current = atomGet(_atom) as typeof _atom
+      _current?.[DependentsId]?.delete(readAtomState)
     }
-  }, [atom])
+  }, [_atom])
 
   return [atomValue, writeAtomState]
 }
 
 export const useAtomList = <T, L extends AtomList<T>>(
-  atomList: L,
-): [string[], (u: typeof atomList[Keys.ListValue]['id'][Keys.Value][]) => void] => {
-  const atomListState = useRef<typeof atomList>(atomList)
-  const [atomListValue, setAtomListValue] = useState(() => atomList[Keys.Value])
+  _atomList: L,
+  hydrateList = false,
+): [
+  string[] | typeof _atomList[Keys.ListValue]['id'][Keys.Value][],
+  (u: typeof _atomList[Keys.ListValue]['id'][Keys.Value][]) => void,
+] => {
+  const [atomListValue, setAtomListValue] = useState(() =>
+    hydrateList
+      ? atomGetValue(_atomList as any)?.map(
+          (key: string) => (atomGet(_atomList) as AtomList)?.[Keys.ListValue]?.[key]?.[Keys.Value],
+        )
+      : (atomGet(_atomList) as AtomList)?.[Keys.Value] || [],
+  )
 
   const readListAtomState = useMemo(
     () => ({
-      [Keys.Read]: () => setAtomListValue(atomListState.current[Keys.Value]),
+      [Keys.Read]: () =>
+        setAtomListValue(
+          hydrateList
+            ? atomGetValue(_atomList as any)?.map(
+                (key: string) => (atomGet(_atomList) as AtomList)?.[Keys.ListValue]?.[key]?.[Keys.Value],
+              )
+            : (atomGet(_atomList) as AtomList)?.[Keys.Value] || [],
+        ),
     }),
     // eslint-disable-next-line
     [],
   )
 
-  const writeAtomListState = useMemo<(u: typeof atomList[Keys.ListValue]['id'][Keys.Value][]) => void>(
+  const writeAtomListState = useMemo<(u: typeof _atomList[Keys.ListValue]['id'][Keys.Value][]) => void>(
     () => (u) => {
+      const _current = atomGet(_atomList) as typeof _atomList
+      if (!_current) return
+
       const next = u.map((v) => {
-        const id = atomListState.current[MapperId](v)
-        if (!(id in atomListState.current[Keys.ListValue])) {
-          atomListState.current[Keys.ListValue][id] = atom(v)
+        const id = _current[MapperId](v)
+        if (!(id in _current[Keys.ListValue])) {
+          _current[Keys.ListValue][id] = atom(v)
         }
         return [id, v]
       })
-      atomListState.current[HistoryId].add({
+      _current[HistoryId].add({
         [Keys.Value]: next as any,
-        [Keys.CommitVersion]: ++atomListState.current[VersionId],
+        [Keys.CommitVersion]: ++_current[VersionId],
       })
-      if (atomListState.current[ReconcileId]) clearTimeout(atomListState.current[ReconcileId])
-      atomListState.current[ReconcileId] = setTimeout(() => {
-        const update = atomListState.current[HistoryId][LastId]
+      if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
+      _current[ReconcileId] = setTimeout(() => {
+        const update = _current[HistoryId][LastId]
         if (update) {
-          atomListState.current[HistoryId].clear()
-          atomListState.current[Keys.Value] = update[Keys.Value].map(([id, v]) => {
-            atomListState.current[Keys.ListValue][id][Keys.CommitVersion] = update[Keys.CommitVersion]
-            atomListState.current[Keys.ListValue][id][Keys.Value] = v as any
-            for (const dependent of atomListState.current[Keys.ListValue][id][DependentsId]) {
+          _current[HistoryId].clear()
+          _current[Keys.Value] = update[Keys.Value].map(([id, v]) => {
+            _current[Keys.ListValue][id][Keys.CommitVersion] = update[Keys.CommitVersion]
+            _current[Keys.ListValue][id][Keys.Value] = v as any
+            for (const dependent of _current[Keys.ListValue][id][DependentsId]) {
               dependent[Keys.Read]()
             }
             return id
           })
-          atomListState.current[Keys.CommitVersion] = update[Keys.CommitVersion]
+          _current[Keys.CommitVersion] = update[Keys.CommitVersion]
           if (process.env.NODE_ENV !== 'production') {
-            console.log(JSON.parse(JSON.stringify(atomListState.current)))
+            console.log(JSON.parse(JSON.stringify(_atomList)))
           }
-          for (const dependent of atomListState.current[DependentsId]) {
+          for (const dependent of _current[DependentsId]) {
             dependent[Keys.Read]()
           }
         }
@@ -203,11 +246,13 @@ export const useAtomList = <T, L extends AtomList<T>>(
   )
 
   useEffect(() => {
-    atomListState.current[DependentsId].add(readListAtomState)
+    const _current = atomGet(_atomList) as typeof _atomList
+    _current[DependentsId].add(readListAtomState)
     return () => {
-      atomListState.current[DependentsId].delete(readListAtomState)
+      const _current = atomGet(_atomList) as typeof _atomList
+      _current[DependentsId].delete(readListAtomState)
     }
-  }, [atomList])
+  }, [_atomList])
 
   return [atomListValue, writeAtomListState]
 }
@@ -216,6 +261,9 @@ export const useAtomSelector = <T, L extends AtomList<T>>(
   atomList: L,
   id: string,
 ): [AtomValue<typeof atomList[Keys.ListValue][typeof id]>, AtomUpdate<typeof atomList[Keys.ListValue][typeof id]>] => {
-  const atomRef = useRef(atomList[Keys.ListValue][id])
+  const atomRef = useRef(undefined as any)
+  if (!atomRef.current) {
+    atomRef.current = (atomGet(atomList) as typeof atomList)?.[Keys.ListValue]?.[id]
+  }
   return useAtom(atomRef.current) as any
 }
