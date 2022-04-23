@@ -41,9 +41,11 @@ export declare type AtomList<T = any> = Atom<string[]> & {
 export declare type AtomValue<V extends AtomSnapshot> = V[Keys.Value];
 export declare type AtomUpdate<V extends AtomSnapshot> = (u: Write<V[Keys.Value]>) => void;
 export declare type AtomReducer<V extends AtomSnapshot> = (v: V, u: V) => V;
+export declare const atomGetValue: <T extends AtomSnapshot<any>>(atom: Atom<T> | AtomList<T>) => AtomValue<T> | undefined;
+export declare const atomSetValue: <T = any>(atom: Atom<T> | AtomList<T>, v: T) => void;
 export declare const atom: <T = any>(value: T) => Atom<T>;
 export declare const atomList: <T = any>(value: T[], idMapper?: IdFunc) => AtomList<T>;
-export declare const useAtom: <T, A extends Atom<T>>(atom: A, reducer?: AtomReducer<A> | undefined) => [AtomValue<A>, AtomUpdate<A>];
-export declare const useAtomList: <T, L extends AtomList<T>>(atomList: L) => [string[], (u: L[Keys.ListValue]["id"][Keys.Value][]) => void];
+export declare const useAtom: <T, A extends Atom<T>>(_atom: A, reducer?: AtomReducer<A> | undefined) => [AtomValue<A>, AtomUpdate<A>];
+export declare const useAtomList: <T, L extends AtomList<T>>(_atomList: L, hydrateList?: boolean) => [string[] | L[Keys.ListValue]["id"][Keys.Value][], (u: L[Keys.ListValue]["id"][Keys.Value][]) => void];
 export declare const useAtomSelector: <T, L extends AtomList<T>>(atomList: L, id: string) => [AtomValue<L[Keys.ListValue][string]>, AtomUpdate<L[Keys.ListValue][string]>];
 export {};
