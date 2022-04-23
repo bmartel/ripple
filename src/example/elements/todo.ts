@@ -1,9 +1,13 @@
 import { html, component } from 'haunted'
-import { todoAtom } from '../atoms/todo'
-import { useAtom } from '../../ripple'
+import { useAtomSelector } from '../../ripple'
+import { todoListAtom } from '../atoms/todo'
 
-function Todo() {
-  const [todo, setTodo] = useAtom(todoAtom)
+interface TodoProps extends Element {
+  todoId: string
+}
+
+function Todo({ todoId }: TodoProps) {
+  const [todo, setTodo] = useAtomSelector(todoListAtom, todoId)
 
   return html`
     <style>
@@ -12,7 +16,7 @@ function Todo() {
         box-sizing: border-box;
       }
     </style>
-    <header></header>
+    <header>${todo.title}</header>
     <form>
       <input
         name="title"
@@ -23,4 +27,4 @@ function Todo() {
   `
 }
 
-customElements.define('r-todo', component<any>(Todo))
+customElements.define('r-todo', component<TodoProps>(Todo))

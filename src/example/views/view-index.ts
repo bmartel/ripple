@@ -1,12 +1,8 @@
 import { html, component } from 'haunted'
-import { useAtom } from '../../ripple'
 
-import { todoAtom } from '../atoms/todo'
-import '../elements/todo'
+import '../elements/todo-list'
 
 function ViewIndex() {
-  const [todo] = useAtom(todoAtom)
-
   return html`
     <style>
       :host {
@@ -17,8 +13,8 @@ function ViewIndex() {
       }
     </style>
 
-    <h1 id="title">${todo.title}</h1>
-    <r-todo></r-todo>
+    <h1 id="title">Vite + Haunted</h1>
+    <r-todo-list></r-todo-list>
   `
 }
 

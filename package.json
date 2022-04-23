@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@martel/haunted-router": "^0.3.1",
-    "lit-html": "^2.2.2",
+    "lit-html": "^1.0.0",
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@open-wc/testing": "^2.5.33",
     "@types/node": "^17.0.25",
