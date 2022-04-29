@@ -22,7 +22,7 @@ export const countAtom = atom(0)
 
 ```ts
 import { component, html } from 'haunted'
-import {} from '@martel/ripple'
+import { useAtom } from '@martel/ripple'
 
 function Counter() {
   const [count, setCount] = useAtom(countAtom)
