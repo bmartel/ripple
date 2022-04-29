@@ -13,7 +13,7 @@ npm i ripple haunted
 ## Define an atom
 
 ```ts
-import { atom } from 'ripple'
+import { atom } from '@martel/ripple'
 
 export const countAtom = atom(0)
 ```
@@ -22,6 +22,7 @@ export const countAtom = atom(0)
 
 ```ts
 import { component, html } from 'haunted'
+import {} from '@martel/ripple'
 
 function Counter() {
   const [count, setCount] = useAtom(countAtom)
