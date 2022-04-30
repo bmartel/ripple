@@ -1,28 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'haunted'
 import {
-  atom,
   Atom,
   atomGet,
   atomGetValue,
+  atomSubscribe,
+  atomUnsubscribe,
+  atomWriteList,
   AtomList,
   AtomListSnapshot,
   AtomListUpdate,
-  AtomReducer,
-  atomSet,
   AtomUpdate,
   AtomValue,
-  DependentsId,
-  HistoryId,
   Keys,
-  LastId,
-  MapperId,
-  ReconcileId,
-  VersionId,
+  Read,
+  atomWrite,
+  AtomWriteConfig,
+  atomListGetValue,
+  atomListGetListValue,
 } from './atom'
 
+export type UseAtomConfig<T extends Atom> = AtomWriteConfig<T>
 export const useAtom = <T, A extends Atom<T>>(
   _atom: A,
-  reducer?: AtomReducer<typeof _atom>,
+  { reducer } = {} as UseAtomConfig<typeof _atom>,
 ): [AtomValue<typeof _atom>, AtomUpdate<typeof _atom>] => {
   const [atomValue, setAtomValue] = useState(() => atomGetValue(_atom as any) as unknown as typeof _atom[Keys.Value])
 
@@ -36,87 +36,41 @@ export const useAtom = <T, A extends Atom<T>>(
 
   const writeAtomState = useMemo<AtomUpdate<typeof _atom>>(
     () => (u) => {
-      let next: AtomValue<typeof _atom>
-
-      let _current = atomGet(_atom) as typeof _atom
-      if (!_current) return
-
-      if (typeof u === 'function') {
-        next = (u as any)(_current)
-      } else {
-        next = u
-      }
-      if (next !== _current[Keys.Value]) {
-        _current[HistoryId].add({ [Keys.Value]: next, [Keys.Version]: ++_current[VersionId] })
-        if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
-        _current[ReconcileId] = setTimeout(() => {
-          _current = atomGet(_atom) as typeof _atom
-          if (!_current) return
-          const update = reducer
-            ? Array.from(_current[HistoryId]).reduce(reducer as any, {
-                [Keys.Value]: _current[Keys.Value],
-                [Keys.Version]: _current[Keys.Version],
-              })
-            : _current[HistoryId][LastId]
-          if (update) {
-            _current[HistoryId].clear()
-            _current[Keys.Value] = update[Keys.Value]
-            _current[Keys.Version] = update[Keys.Version]
-            atomSet(_atom, _current)
-            if (process.env.NODE_ENV !== 'production') {
-              //
-            }
-            for (const dependent of _current[DependentsId]) {
-              dependent[Keys.Read]()
-            }
-          }
-        }, 0)
-        atomSet(_atom, _current)
-      }
+      atomWrite(_atom, u, { reducer })
     },
     // eslint-disable-next-line
     [],
   )
 
   useEffect(() => {
-    const _current = atomGet(_atom) as typeof _atom
-    _current?.[DependentsId]?.add(readAtomState)
-    atomSet(_atom, _current)
+    atomSubscribe(_atom, readAtomState as Read<typeof _atom>)
     return () => {
-      const _current = atomGet(_atom) as typeof _atom
-      _current?.[DependentsId]?.delete(readAtomState)
-      atomSet(_atom, _current)
+      atomUnsubscribe(_atom, readAtomState as Read<typeof _atom>)
     }
   }, [_atom])
 
   return [atomValue, writeAtomState]
 }
 
+export type UseAtomListConfig = {
+  hydrateList: boolean
+}
 export const useAtomList = <T, L extends AtomList<T>>(
   _atomList: L,
-  hydrateList = false,
+  { hydrateList = false } = {} as UseAtomListConfig,
 ): [
   string[] | typeof _atomList[Keys.ListValue]['id'][Keys.Value][],
   AtomListUpdate<AtomListSnapshot<string[], typeof _atomList[Keys.ListValue]['id'][Keys.Value][]>>,
 ] => {
   const [atomListValue, setAtomListValue] = useState(() =>
-    hydrateList
-      ? atomGetValue(_atomList as any)?.map(
-          (key: string) => atomGet((atomGet(_atomList) as AtomList)?.[Keys.ListValue]?.[key] as any)?.[Keys.Value],
-        )
-      : (atomGet(_atomList) as AtomList)?.[Keys.Value] || [],
+    hydrateList ? atomListGetListValue(_atomList as AtomList) : atomListGetValue(_atomList as AtomList),
   )
 
   const readListAtomState = useMemo(
     () => ({
       [Keys.Read]: () =>
         setAtomListValue(
-          hydrateList
-            ? atomGetValue(_atomList as any)?.map(
-                (key: string) =>
-                  atomGet((atomGet(_atomList) as AtomList)?.[Keys.ListValue]?.[key] as any)?.[Keys.Value],
-              )
-            : (atomGet(_atomList) as AtomList)?.[Keys.Value] || [],
+          hydrateList ? atomListGetListValue(_atomList as AtomList) : atomListGetValue(_atomList as AtomList),
         ),
     }),
     // eslint-disable-next-line
@@ -127,78 +81,20 @@ export const useAtomList = <T, L extends AtomList<T>>(
     AtomListUpdate<AtomListSnapshot<string[], typeof _atomList[Keys.ListValue]['id'][Keys.Value][]>>
   >(
     () => (u) => {
-      let next: typeof _atomList[Keys.ListValue]['id'][Keys.Value][]
-
-      let _current = atomGet(_atomList) as typeof _atomList
-      if (!_current) return
-
-      if (typeof u === 'function') {
-        next = (u as any)(
-          _current?.[Keys.Value]?.map(
-            (key) => atomGet((atomGet(_atomList) as AtomList)?.[Keys.ListValue]?.[key])?.[Keys.Value],
-          ) || [],
-        )
-      } else {
-        next = u
-      }
-
-      next = next.map((v) => {
-        const id = _current[MapperId](v)
-        if (!(id in _current[Keys.ListValue])) {
-          ;(_current[Keys.ListValue][id] as any) = atom(v)
-        }
-        return [id, v]
-      }) as any
-
-      _current[HistoryId].add({
-        [Keys.Value]: next as any,
-        [Keys.Version]: ++_current[VersionId],
-      })
-      if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
-      _current[ReconcileId] = setTimeout(() => {
-        _current = atomGet(_atomList) as typeof _atomList
-        if (!_current) return
-        const update = _current[HistoryId][LastId]
-        if (update) {
-          _current[HistoryId].clear()
-          _current[Keys.Value] = update[Keys.Value].map(([id, v]) => {
-            const _currentAtom = atomGet(_current[Keys.ListValue][id] as any) as any
-            _currentAtom[Keys.Version] = update[Keys.Version]
-            _currentAtom[Keys.Value] = v
-            const deps = (_currentAtom as AtomList)?.[DependentsId]
-            for (const dependent of deps) {
-              dependent[Keys.Read]()
-            }
-            return id
-          })
-          _current[Keys.Version] = update[Keys.Version]
-          atomSet(_atomList, _current)
-          if (process.env.NODE_ENV !== 'production') {
-            //
-          }
-          for (const dependent of _current[DependentsId]) {
-            dependent[Keys.Read]()
-          }
-        }
-      }, 0)
-      atomSet(_atomList, _current)
+      atomWriteList(_atomList, u)
     },
     // eslint-disable-next-line
     [],
   )
 
   useEffect(() => {
-    const _current = atomGet(_atomList) as typeof _atomList
-    _current[DependentsId].add(readListAtomState)
-    atomSet(_atomList, _current)
+    atomSubscribe(_atomList, readListAtomState as Read<typeof _atomList>)
     return () => {
-      const _current = atomGet(_atomList) as typeof _atomList
-      _current[DependentsId].delete(readListAtomState)
-      atomSet(_atomList, _current)
+      atomUnsubscribe(_atomList, readListAtomState as Read<typeof _atomList>)
     }
   }, [_atomList])
 
-  return [atomListValue, writeAtomListState]
+  return [atomListValue as any, writeAtomListState]
 }
 
 export const useAtomSelector = <T, L extends AtomList<T>>(

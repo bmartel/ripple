@@ -49,8 +49,17 @@ export declare type AtomListUpdate<V extends AtomListSnapshot> = (u: Write<V[Key
 export declare type AtomReducer<V extends AtomSnapshot> = (v: V, u: V) => V;
 export declare const atomGet: <T = any>(atom: Atom<T> | AtomList<T>) => Atom<T> | AtomList<T> | undefined;
 export declare const atomSet: <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomList<T>) => void;
+export declare const atomSubscribe: <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<Atom<T> | AtomList<T>>) => void;
+export declare const atomUnsubscribe: <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<Atom<T> | AtomList<T>>) => void;
 export declare const atomGetValue: <T extends AtomSnapshot<any>>(atom: Atom<T> | AtomList<T>) => AtomValue<T> | undefined;
 export declare const atomSetValue: <T = any>(atom: Atom<T> | AtomList<T>, v: T) => void;
+export declare const atomListGetListValue: <T extends AtomListSnapshot<string[], any>>(atomList: AtomList<T>) => Atom<T>[];
+export declare const atomListGetValue: <T extends AtomListSnapshot<string[], any>>(atomList: AtomList<T>) => string[];
+export declare type AtomWriteConfig<T extends Atom> = {
+    reducer?: AtomReducer<T>;
+};
+export declare const atomWrite: <T, A extends Atom<T>>(atom: A, update: Write<A[Keys.Value]>, { reducer }?: AtomWriteConfig<A>) => void;
+export declare const atomWriteList: <T = any>(atomList: AtomList<T>, update: Write<T[]>) => void;
 export declare const atom: <T = any>(value: T) => Atom<T>;
 export declare const atomList: <T = any>(value: T[], idMapper?: IdFunc) => AtomList<T>;
 export {};
