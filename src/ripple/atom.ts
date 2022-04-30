@@ -4,8 +4,10 @@ export enum Keys {
   Version = '#',
   Read = '<',
   Write = '>',
+  Self = '.',
 }
 
+export const InitId = Symbol('ripple.initId')
 export const ReconcileId = Symbol('ripple.reconcileId')
 export const MapperId = Symbol('ripple.MapperId')
 export const LastId = Symbol('ripple.lastId')
@@ -50,6 +52,7 @@ export type AtomListSnapshot<T = string[], L = any> = {
 
 export type Atom<T = any> = AtomSnapshot<T> & {
   [ReconcileId]: any
+  [InitId]: boolean
   [VersionId]: number
   [HistoryId]: CustomSet<AtomSnapshot<T>>
   [DependentsId]: CustomSet<Read>
@@ -73,14 +76,14 @@ export const atomSet = <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomL
 
 export const atomSubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<typeof atom>): void => {
   const _current = atomGet<T>(atom)
-  if (_current?.[DependentsId]) {
+  if (_current && DependentsId in _current) {
     _current[DependentsId].add(subscription)
     atomSet(atom, _current)
   }
 }
 export const atomUnsubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<typeof atom>): void => {
   const _current = atomGet<T>(atom)
-  if (_current?.[DependentsId]) {
+  if (_current && DependentsId in _current) {
     _current[DependentsId].delete(subscription)
     atomSet(atom, _current)
   }
@@ -89,8 +92,9 @@ export const atomGetValue = <T extends AtomSnapshot>(atom: Atom<T> | AtomList<T>
   state.get(atom)?.[Keys.Value]
 export const atomSetValue = <T = any>(atom: Atom<T> | AtomList<T>, v: T): void => {
   const _current = atomGet<T>(atom)
-  if (_current?.[Keys.Value]) {
+  if (_current && Keys.Value in _current) {
     _current[Keys.Value] = v
+    _current[InitId] = true
     atomSet(atom, _current)
   }
 }
@@ -104,6 +108,15 @@ export const atomListGetListValue = <T extends AtomListSnapshot>(atomList: AtomL
 }
 export const atomListGetValue = <T extends AtomListSnapshot>(atomList: AtomList<T>): string[] => {
   return (atomGet(atomList) as AtomList)?.[Keys.Value] || []
+}
+
+export const atomNotify = <T, A extends Atom<T>>(atom: A) => {
+  const _current = DependentsId in atom ? atom : (atomGet(atom) as typeof atom)
+  if (_current && DependentsId in _current) {
+    for (const dependent of _current[DependentsId]) {
+      dependent[Keys.Read]()
+    }
+  }
 }
 
 export type AtomWriteConfig<T extends Atom> = {
@@ -144,9 +157,7 @@ export const atomWrite = <T, A extends Atom<T>>(
         if (process.env.NODE_ENV !== 'production') {
           //
         }
-        for (const dependent of _current[DependentsId]) {
-          dependent[Keys.Read]()
-        }
+        atomNotify(atom)
       }
     }, 0)
     atomSet(atom, _current)
@@ -193,11 +204,10 @@ export const atomWriteList = <T = any>(
       _current[HistoryId].clear()
       _current[Keys.Value] = update[Keys.Value].map(([id, v]) => {
         const _currentAtom = atomGet(_current[Keys.ListValue][id] as any) as any
-        _currentAtom[Keys.Version] = update[Keys.Version]
-        _currentAtom[Keys.Value] = v
-        const deps = (_currentAtom as AtomList)?.[DependentsId]
-        for (const dependent of deps) {
-          dependent[Keys.Read]()
+        if (_currentAtom) {
+          _currentAtom[Keys.Version] = update[Keys.Version]
+          _currentAtom[Keys.Value] = v
+          atomNotify(_currentAtom)
         }
         return id
       })
@@ -206,49 +216,101 @@ export const atomWriteList = <T = any>(
       if (process.env.NODE_ENV !== 'production') {
         //
       }
-      for (const dependent of _current[DependentsId]) {
-        dependent[Keys.Read]()
-      }
+
+      atomNotify(atomList)
     }
   }, 0)
   atomSet(atomList, _current)
 }
 
-export const atom = <T = any>(value: T): Atom<T> => {
-  const ref = {}
-  atomSet(
-    ref as any,
-    {
-      [ReconcileId]: null,
-      [HistoryId]: new CustomSet(),
-      [DependentsId]: new CustomSet(),
-      [VersionId]: 0,
-      [Keys.Value]: value,
-      [Keys.Version]: 0,
-    } as Atom<T>,
-  )
+export const atom = <T = any>(value: T | (() => Promise<T>)): Atom<T> => {
+  const ref = {} as Atom<T>
+
+  const hasInit = typeof value === 'function'
+  if (hasInit) {
+    ;(async () => {
+      atomSet(
+        ref as any,
+        {
+          [ReconcileId]: null,
+          [HistoryId]: new CustomSet(),
+          [DependentsId]: new CustomSet(),
+          [InitId]: false,
+          [VersionId]: 0,
+          [Keys.Value]: undefined as any,
+          [Keys.Version]: 0,
+        } as Atom<T>,
+      )
+      atomSetValue(ref, await (value as () => Promise<T>)())
+    })()
+  } else {
+    atomSet(
+      ref as any,
+      {
+        [ReconcileId]: null,
+        [HistoryId]: new CustomSet(),
+        [DependentsId]: new CustomSet(),
+        [InitId]: true,
+        [VersionId]: 0,
+        [Keys.Value]: value as any,
+        [Keys.Version]: 0,
+      } as Atom<T>,
+    )
+  }
   return ref as any
 }
 
-export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
+export const atomList = <T = any>(value: T[] | (() => Promise<T[]>), idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
   const atomListValue: AtomList<T>[Keys.ListValue] = {}
 
-  const idList = value.map((v) => {
-    const id = idMapper(v)
-    if (!(id in atomListValue)) {
-      atomListValue[id] = atom(v)
-    }
-    return id
-  })
+  const hasInit = typeof value === 'function'
+
+  let resolve: null | ((v?: any) => void) = null
+  let promise: null | Promise<any> = null
+
+  if (hasInit) {
+    promise = new Promise((res) => (resolve = res))
+  }
+
+  const idList = hasInit
+    ? async () => {
+        const ids = (await value()).map((v) => {
+          const id = idMapper(v)
+          if (!(id in atomListValue)) {
+            atomListValue[id] = atom(v)
+          }
+          return id
+        })
+        resolve?.()
+        return ids
+      }
+    : value.map((v) => {
+        const id = idMapper(v)
+        if (!(id in atomListValue)) {
+          atomListValue[id] = atom(v)
+        }
+        return id
+      })
 
   const ref = atom(idList) as AtomList<T>
 
-  const _atomList = atomGet(ref) as AtomList<T>
-
-  _atomList[Keys.ListValue] = atomListValue
-  _atomList[MapperId] = idMapper
-
-  atomSet(ref, _atomList)
+  if (promise) {
+    ;(async () => {
+      await promise
+      const _atomList = atomGet(ref) as AtomList<T>
+      _atomList[Keys.ListValue] = atomListValue
+      _atomList[MapperId] = idMapper
+      atomSet(ref, _atomList)
+      setTimeout(() => {
+        atomNotify(ref)
+      }, 0)
+    })()
+  } else {
+    const _atomList = atomGet(ref) as AtomList<T>
+    _atomList[Keys.ListValue] = atomListValue
+    _atomList[MapperId] = idMapper
+    atomSet(ref, _atomList)
+  }
 
   return ref
 }

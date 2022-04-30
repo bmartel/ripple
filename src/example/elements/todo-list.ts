@@ -16,6 +16,8 @@ function TodoList() {
           update.completedAt = Date.now()
         }
         prev.splice(1)
+
+        console.log({ prev })
         return prev
       })
     }, 1500)

@@ -1,6 +1,6 @@
 {
   "name": "@martel/ripple",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "./dist/ripple.umd.js",
   "module": "./dist/ripple.es.js",
   "exports": {

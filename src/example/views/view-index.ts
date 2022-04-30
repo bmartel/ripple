@@ -1,5 +1,6 @@
 import { html, component } from 'haunted'
 
+import '../elements/post-list'
 import '../elements/todo-list'
 
 function ViewIndex() {
@@ -15,6 +16,7 @@ function ViewIndex() {
 
     <h1 id="title">Vite + Haunted</h1>
     <r-todo-list></r-todo-list>
+    <r-post-list></r-post-list>
   `
 }
 
