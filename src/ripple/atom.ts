@@ -314,3 +314,29 @@ export const atomList = <T = any>(value: T[] | (() => Promise<T[]>), idMapper: I
 
   return ref
 }
+
+export type AtomEffectOperator = (
+  get: (a: Atom | AtomList) => any,
+  set: (
+    a: Atom | AtomList,
+    v: Write<typeof a extends AtomList<any> ? typeof a[Keys.ListValue] : typeof a[Keys.Value]>,
+  ) => void,
+) => void
+export type AtomEffect = (effect: AtomEffectOperator) => void
+
+export const atomEffect = (effect: AtomEffectOperator): void => {
+  const get = (_atom: Atom | AtomList) => {
+    atomSubscribe(_atom, run as any)
+  }
+  const set = (
+    _atom: Atom | AtomList,
+    value: Write<typeof _atom extends AtomList<any> ? typeof _atom[Keys.ListValue] : typeof _atom[Keys.Value]>,
+  ) => {
+    atomWrite(_atom, value)
+  }
+  let deferId: any
+  function run() {
+    if (deferId) clearTimeout(deferId)
+    deferId = setTimeout(() => effect(get, set), 1)
+  }
+}
