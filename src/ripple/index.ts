@@ -8,6 +8,7 @@ import type {
   AtomWriteConfig,
   AtomReducer,
   AtomEffect,
+  AtomRef,
   Read,
   Write,
 } from './atom'
@@ -16,6 +17,7 @@ import {
   atom,
   atomList,
   atomEffect,
+  atomRef,
   atomGet,
   atomSet,
   atomWrite,
@@ -28,12 +30,13 @@ import {
   atomListGetListValue,
   atomListGetValue,
 } from './atom'
-import { useAtom, useAtomList, useAtomSelector, useAtomEffect } from './hooks'
+import { useAtom, useAtomList, useAtomSelector, useAtomEffect, useAtomRef } from './hooks'
 
 export type {
   Atom,
   AtomList,
   AtomEffect,
+  AtomRef,
   AtomValue,
   AtomSnapshot,
   AtomUpdate,
@@ -49,6 +52,7 @@ export {
   atom,
   atomList,
   atomEffect,
+  atomRef,
   atomGet,
   atomSet,
   atomWrite,
@@ -64,4 +68,5 @@ export {
   useAtomList,
   useAtomSelector,
   useAtomEffect,
+  useAtomRef,
 }

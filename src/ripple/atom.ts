@@ -348,7 +348,7 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
         subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
       }
 
-      return Keys.ListValue in _atom ? atomListGetValue(_atom) : atomGetValue(_atom)
+      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
     }
 
     const set = (
@@ -365,10 +365,10 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
     let deferId: any
     function run() {
       if (deferId) clearTimeout(deferId)
-      deferId = setTimeout(() => effect(get, set), 1)
+      deferId = setTimeout(() => effect(get, set), 0)
     }
 
-    run()
+    setTimeout(run, 1)
 
     return () => {
       for (const [_k, unsub] of subscriptions) {
@@ -379,4 +379,50 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
   }
 
   return start
+}
+
+export type AtomRefOperator<T = any> = (get: (a: Atom | AtomList) => any) => T
+export type AtomRefReturn<T = any> = {
+  value: () => T | undefined
+  start: () => void
+  stop: AtomEffectUnsubscribe
+}
+export type AtomRef<T = any> = (notify: () => void) => AtomRefReturn<T>
+
+export const atomRef = <T = any>(ref: AtomRefOperator<T>): AtomRef<T> => {
+  const value: { current?: T } = { current: undefined }
+  return (notify) => {
+    const subscriptions = new Map()
+
+    const get = (_atom: Atom | AtomList): T => {
+      if (!subscriptions.has(_atom)) {
+        const subscription = { [Keys.Read]: run as any }
+        atomSubscribe(_atom, subscription)
+        subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
+      }
+
+      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
+    }
+
+    let deferId: any
+    function run() {
+      if (deferId) clearTimeout(deferId)
+      deferId = setTimeout(() => {
+        value.current = ref(get)
+        notify()
+      }, 0)
+    }
+
+    return {
+      value: (): T | undefined => value.current,
+      start: () => setTimeout(run, 1),
+      stop: () => {
+        if (!subscriptions) return
+        for (const [_k, unsub] of subscriptions) {
+          unsub()
+        }
+        subscriptions.clear()
+      },
+    }
+  }
 }
