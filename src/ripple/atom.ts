@@ -365,10 +365,10 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
     let deferId: any
     function run() {
       if (deferId) clearTimeout(deferId)
-      deferId = setTimeout(() => effect(get, set), 0)
+      deferId = setTimeout(() => effect(get, set), 1)
     }
 
-    setTimeout(run, 1)
+    run()
 
     return () => {
       for (const [_k, unsub] of subscriptions) {
@@ -410,12 +410,12 @@ export const atomRef = <T = any>(ref: AtomRefOperator<T>): AtomRef<T> => {
       deferId = setTimeout(() => {
         value.current = ref(get)
         notify()
-      }, 0)
+      }, 1)
     }
 
     return {
       value: (): T | undefined => value.current,
-      start: () => setTimeout(run, 1),
+      start: run,
       stop: () => {
         if (!subscriptions) return
         for (const [_k, unsub] of subscriptions) {
