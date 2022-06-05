@@ -121,14 +121,15 @@ export const useAtomRef = <T = any>(atomRef: AtomRef): T | undefined => {
   const [, update] = useState()
   const notify = () => update({})
   const ref = useRef(undefined as any)
+  if (!ref.current) {
+    ref.current = atomRef(notify)
+  }
 
   useEffect(() => {
-    ref.current = atomRef(notify)
     const { start, stop } = ref.current
     start()
-
     return stop
-  }, [atomRef])
+  }, [])
 
   return ref.current?.value?.()
 }

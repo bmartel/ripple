@@ -389,8 +389,8 @@ export type AtomRefReturn<T = any> = {
 }
 export type AtomRef<T = any> = (notify: () => void) => AtomRefReturn<T>
 
-export const atomRef = <T = any>(ref: AtomRefOperator<T>): AtomRef<T> => {
-  const value: { current?: T } = { current: undefined }
+export const atomRef = <T = any>(ref: AtomRefOperator<T>, defaultValue?: T): AtomRef<T> => {
+  const value: { current?: T } = { current: defaultValue }
   return (notify) => {
     const subscriptions = new Map()
 
@@ -410,7 +410,7 @@ export const atomRef = <T = any>(ref: AtomRefOperator<T>): AtomRef<T> => {
       deferId = setTimeout(() => {
         value.current = ref(get)
         notify()
-      }, 1)
+      }, 0)
     }
 
     return {

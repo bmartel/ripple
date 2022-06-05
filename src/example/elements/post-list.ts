@@ -3,6 +3,7 @@ import { repeat } from 'lit-html/directives/repeat.js'
 import { IPost, postListAtom, postListLoadingAtom } from '../atoms/post'
 import { useAtom, useAtomList, useAtomEffect } from '../../ripple'
 import { postListLoadingEffect } from '../effects/post'
+import './post-count'
 
 function PostList() {
   const [posts] = useAtomList(postListAtom, { hydrateList: true })
@@ -19,6 +20,7 @@ function PostList() {
         box-sizing: border-box;
       }
     </style>
+    <r-post-count></r-post-count>
     ${posts
       ? repeat(
           posts as IPost[],
