@@ -44,6 +44,18 @@ jobs:
           node-version: 16
       - uses: actions/cache@v2
         with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-node-playwright
+          restore-keys: |
+            ${{ runner.os }}-node-playwright
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - uses: actions/cache@v2
+        with:
           path: |
             node_modules
           key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
