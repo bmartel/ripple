@@ -343,8 +343,9 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
 
     const get = (_atom: Atom | AtomList) => {
       if (!subscriptions.has(_atom)) {
-        atomSubscribe(_atom, run as any)
-        subscriptions.set(_atom, () => atomUnsubscribe(_atom, run as any))
+        const subscription = { [Keys.Read]: run as any }
+        atomSubscribe(_atom, subscription)
+        subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
       }
 
       return Keys.ListValue in _atom ? atomListGetValue(_atom) : atomGetValue(_atom)
