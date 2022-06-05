@@ -24,7 +24,7 @@
     "test": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium",
     "test:watch": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium --watch",
     "prepare": "husky install",
-    "preversion": "build"
+    "preversion": "npm run build"
   },
   "dependencies": {
     "haunted": ">=4.8.3"
