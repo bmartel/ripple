@@ -46,6 +46,7 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Run unit tests
         run: |
+          npx playwright install 
           npm test
   build:
     runs-on: ubuntu-latest
