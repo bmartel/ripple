@@ -110,22 +110,27 @@ export const atomListGetValue = <T extends AtomListSnapshot>(atomList: AtomList<
   return (atomGet(atomList) as AtomList)?.[Keys.Value] || []
 }
 
-export const atomNotify = <T, A extends Atom<T>>(atom: A) => {
+export const atomNotify = <T, A extends Atom<T>>(atom: A, skip: Read[Keys.Read][] = []) => {
   const _current = DependentsId in atom ? atom : (atomGet(atom) as typeof atom)
   if (_current && DependentsId in _current) {
     for (const dependent of _current[DependentsId]) {
-      dependent[Keys.Read]()
+      const read = dependent[Keys.Read]
+
+      if (read && !skip.includes(read)) {
+        read()
+      }
     }
   }
 }
 
 export type AtomWriteConfig<T extends Atom> = {
   reducer?: AtomReducer<T>
+  skipNotify?: Read[Keys.Read][]
 }
 export const atomWrite = <T, A extends Atom<T>>(
   atom: A,
   update: Write<typeof atom[Keys.Value]>,
-  { reducer } = {} as AtomWriteConfig<typeof atom>,
+  { reducer, skipNotify = [] } = {} as AtomWriteConfig<typeof atom>,
 ) => {
   let next: AtomValue<typeof atom>
 
@@ -150,6 +155,9 @@ export const atomWrite = <T, A extends Atom<T>>(
           })
         : _current[HistoryId][LastId]
       if (update) {
+        // TODO:
+        // - make this not auto-clear, but retain checkpoints of data for moving back and forth in history.
+        // - maybe this behaviour has opt-in?
         _current[HistoryId].clear()
         _current[Keys.Value] = update[Keys.Value]
         _current[Keys.Version] = update[Keys.Version]
@@ -157,7 +165,7 @@ export const atomWrite = <T, A extends Atom<T>>(
         if (process.env.NODE_ENV !== 'production') {
           //
         }
-        atomNotify(atom)
+        atomNotify(atom, skipNotify)
       }
     }, 0)
     atomSet(atom, _current)
@@ -167,6 +175,7 @@ export const atomWrite = <T, A extends Atom<T>>(
 export const atomWriteList = <T = any>(
   atomList: AtomList<T>,
   update: Write<typeof atomList[Keys.ListValue]['id'][Keys.Value][]>,
+  { skipNotify = [] }: { skipNotify: Read[Keys.Read][] } = { skipNotify: [] },
 ) => {
   let next: typeof atomList[Keys.ListValue]['id'][Keys.Value][]
 
@@ -201,13 +210,16 @@ export const atomWriteList = <T = any>(
     if (!_current) return
     const update = _current[HistoryId][LastId]
     if (update) {
+      // TODO:
+      // - make this not auto-clear, but retain checkpoints of data for moving back and forth in history.
+      // - maybe this behaviour has opt-in?
       _current[HistoryId].clear()
       _current[Keys.Value] = update[Keys.Value].map(([id, v]) => {
         const _currentAtom = atomGet(_current[Keys.ListValue][id] as any) as any
         if (_currentAtom) {
           _currentAtom[Keys.Version] = update[Keys.Version]
           _currentAtom[Keys.Value] = v
-          atomNotify(_currentAtom)
+          atomNotify(_currentAtom, skipNotify)
         }
         return id
       })
@@ -217,7 +229,7 @@ export const atomWriteList = <T = any>(
         //
       }
 
-      atomNotify(atomList)
+      atomNotify(atomList, skipNotify)
     }
   }, 0)
   atomSet(atomList, _current)
@@ -313,4 +325,104 @@ export const atomList = <T = any>(value: T[] | (() => Promise<T[]>), idMapper: I
   }
 
   return ref
+}
+
+export type AtomEffectOperator = (
+  get: (a: Atom | AtomList) => any,
+  set: (
+    a: Atom | AtomList,
+    v: Write<typeof a extends AtomList<any> ? typeof a[Keys.ListValue] : typeof a[Keys.Value]>,
+  ) => void,
+) => void
+export type AtomEffectUnsubscribe = () => void
+export type AtomEffect = () => AtomEffectUnsubscribe
+
+export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
+  const start = () => {
+    const subscriptions = new Map()
+
+    const get = (_atom: Atom | AtomList) => {
+      if (!subscriptions.has(_atom)) {
+        const subscription = { [Keys.Read]: run as any }
+        atomSubscribe(_atom, subscription)
+        subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
+      }
+
+      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
+    }
+
+    const set = (
+      _atom: Atom | AtomList,
+      value: Write<typeof _atom extends AtomList<any> ? typeof _atom[Keys.ListValue] : typeof _atom[Keys.Value]>,
+    ) => {
+      if (Keys.ListValue in _atom) {
+        atomWriteList(_atom, value, { skipNotify: [run] })
+      } else {
+        atomWrite(_atom, value, { skipNotify: [run] })
+      }
+    }
+
+    let deferId: any
+    function run() {
+      if (deferId) clearTimeout(deferId)
+      deferId = setTimeout(() => effect(get, set), 1)
+    }
+
+    run()
+
+    return () => {
+      for (const [_k, unsub] of subscriptions) {
+        unsub()
+      }
+      subscriptions.clear()
+    }
+  }
+
+  return start
+}
+
+export type AtomRefOperator<T = any> = (get: (a: Atom | AtomList) => any) => T
+export type AtomRefReturn<T = any> = {
+  value: () => T | undefined
+  start: () => void
+  stop: AtomEffectUnsubscribe
+}
+export type AtomRef<T = any> = (notify: () => void) => AtomRefReturn<T>
+
+export const atomRef = <T = any>(ref: AtomRefOperator<T>, defaultValue?: T): AtomRef<T> => {
+  const value: { current?: T } = { current: defaultValue }
+  return (notify) => {
+    const subscriptions = new Map()
+
+    const get = (_atom: Atom | AtomList): T => {
+      if (!subscriptions.has(_atom)) {
+        const subscription = { [Keys.Read]: run as any }
+        atomSubscribe(_atom, subscription)
+        subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
+      }
+
+      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
+    }
+
+    let deferId: any
+    function run() {
+      if (deferId) clearTimeout(deferId)
+      deferId = setTimeout(() => {
+        value.current = ref(get)
+        notify()
+      }, 0)
+    }
+
+    return {
+      value: (): T | undefined => value.current,
+      start: run,
+      stop: () => {
+        if (!subscriptions) return
+        for (const [_k, unsub] of subscriptions) {
+          unsub()
+        }
+        subscriptions.clear()
+      },
+    }
+  }
 }

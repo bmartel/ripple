@@ -17,6 +17,8 @@ import {
   AtomWriteConfig,
   atomListGetValue,
   atomListGetListValue,
+  AtomEffect,
+  AtomRef,
 } from './atom'
 
 export type UseAtomConfig<T extends Atom> = AtomWriteConfig<T>
@@ -106,4 +108,28 @@ export const useAtomSelector = <T, L extends AtomList<T>>(
     atomRef.current = (atomGet(atomList) as typeof atomList)?.[Keys.ListValue]?.[id] as any
   }
   return useAtom(atomRef.current) as any
+}
+
+export const useAtomEffect = (atomEffect: AtomEffect): void => {
+  useEffect(() => {
+    const stop = atomEffect() // executor function starts the effects, and returns a stop function
+    return stop
+  }, [atomEffect])
+}
+
+export const useAtomRef = <T = any>(atomRef: AtomRef): T | undefined => {
+  const [, update] = useState()
+  const notify = () => update({})
+  const ref = useRef(undefined as any)
+  if (!ref.current) {
+    ref.current = atomRef(notify)
+  }
+
+  useEffect(() => {
+    const { start, stop } = ref.current
+    start()
+    return stop
+  }, [])
+
+  return ref.current?.value?.()
 }

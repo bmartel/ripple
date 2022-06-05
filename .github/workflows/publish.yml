@@ -1,11 +1,8 @@
-name: Test
+name: Publish Release
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
+  release:
+    types: [published]
 
 jobs:
   install:
@@ -51,3 +48,25 @@ jobs:
         run: |
           npx playwright install 
           npm test
+  build:
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.release.target_commitish }}
+      - name: Use Node.js 16
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16
+          registry-url: https://registry.npmjs.org/
+      - run: npm
+      - run: git config --global user.name "Brandon Martel"
+      - run: git config --global user.email "brandonmartel@gmail.com"
+      - run: npm version ${{ github.event.release.tag_name }}
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: git push
+        env:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

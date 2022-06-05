@@ -23,7 +23,8 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
     "test": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium",
     "test:watch": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium --watch",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "preversion": "build"
   },
   "dependencies": {
     "haunted": ">=4.8.3"
