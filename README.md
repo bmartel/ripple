@@ -99,8 +99,12 @@ export interface IPost {
 export const postsAtom = atomList<IPost>([])
 
 export const postsLoadEffect = atomEffect(async (get, set) => {
-  const posts = await fetch('http://jsonplaceholder.typicode.com/posts').then((res) => (res.ok ? res.json() : []))
-  set(postsAtom, posts)
+  const currentPostCount = get(countAtom) // any `get` calls to other atoms will recompute this effect for any outside changes
+  if (currentPostCount < 1) {
+    const posts = await fetch('http://jsonplaceholder.typicode.com/posts').then((res) => (res.ok ? res.json() : []))
+    set(postsAtom, posts)
+    set(countAtom, posts.length) // calls to set an atom will trigger a recompute of any other subscribers outside of this immediate effect
+  }  
 })
 ```
 
@@ -135,3 +139,36 @@ function PostList() {
 
 customElements.define('my-posts', component(PostList))
 ```
+
+## Define a ref
+
+```ts
+import { atomRef } from '@martel/ripple'
+
+export interface IPost {
+  id: number
+  userId: number
+  title: string
+  body: string
+}
+
+export const postsCountRef = atomRef<number>((get) => {
+  const postsCount = get(postsAtom)?.length // anytime postsAtom changes, this ref will recompute
+  
+  return postsCount || 0
+})
+```
+
+## Use a ref
+
+```ts
+import { component, html } from 'haunted'
+import { useAtomRef } from '@martel/ripple'
+
+function PostsCount() {
+  const count = useAtomRef(postsCountRef)
+
+  return html`
+    <div id="count">${count}</div>
+  `
+}
