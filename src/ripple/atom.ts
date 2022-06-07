@@ -208,6 +208,7 @@ export const atomWriteList = <T = any>(
   _current[ReconcileId] = setTimeout(() => {
     _current = atomGet(atomList) as typeof atomList
     if (!_current) return
+
     const update = _current[HistoryId][LastId]
     if (update) {
       // TODO:
@@ -235,94 +236,42 @@ export const atomWriteList = <T = any>(
   atomSet(atomList, _current)
 }
 
-export const atom = <T = any>(value: T | (() => Promise<T>)): Atom<T> => {
+export const atom = <T = any>(value: T): Atom<T> => {
   const ref = {} as Atom<T>
 
-  const hasInit = typeof value === 'function'
-  if (hasInit) {
-    ;(async () => {
-      atomSet(
-        ref as any,
-        {
-          [ReconcileId]: null,
-          [HistoryId]: new CustomSet(),
-          [DependentsId]: new CustomSet(),
-          [InitId]: false,
-          [VersionId]: 0,
-          [Keys.Value]: undefined as any,
-          [Keys.Version]: 0,
-        } as Atom<T>,
-      )
-      atomSetValue(ref, await (value as () => Promise<T>)())
-    })()
-  } else {
-    atomSet(
-      ref as any,
-      {
-        [ReconcileId]: null,
-        [HistoryId]: new CustomSet(),
-        [DependentsId]: new CustomSet(),
-        [InitId]: true,
-        [VersionId]: 0,
-        [Keys.Value]: value as any,
-        [Keys.Version]: 0,
-      } as Atom<T>,
-    )
-  }
+  atomSet(
+    ref as any,
+    {
+      [ReconcileId]: null,
+      [HistoryId]: new CustomSet(),
+      [DependentsId]: new CustomSet(),
+      [InitId]: true,
+      [VersionId]: 0,
+      [Keys.Value]: value as any,
+      [Keys.Version]: 0,
+    } as Atom<T>,
+  )
+
   return ref as any
 }
 
-export const atomList = <T = any>(value: T[] | (() => Promise<T[]>), idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
+export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
   const atomListValue: AtomList<T>[Keys.ListValue] = {}
 
-  const hasInit = typeof value === 'function'
-
-  let resolve: null | ((v?: any) => void) = null
-  let promise: null | Promise<any> = null
-
-  if (hasInit) {
-    promise = new Promise((res) => (resolve = res))
-  }
-
-  const idList = hasInit
-    ? async () => {
-        const ids = (await value()).map((v) => {
-          const id = idMapper(v)
-          if (!(id in atomListValue)) {
-            atomListValue[id] = atom(v)
-          }
-          return id
-        })
-        resolve?.()
-        return ids
-      }
-    : value.map((v) => {
-        const id = idMapper(v)
-        if (!(id in atomListValue)) {
-          atomListValue[id] = atom(v)
-        }
-        return id
-      })
+  const idList = value.map((v) => {
+    const id = idMapper(v)
+    if (!(id in atomListValue)) {
+      atomListValue[id] = atom(v)
+    }
+    return id
+  })
 
   const ref = atom(idList) as AtomList<T>
 
-  if (promise) {
-    ;(async () => {
-      await promise
-      const _atomList = atomGet(ref) as AtomList<T>
-      _atomList[Keys.ListValue] = atomListValue
-      _atomList[MapperId] = idMapper
-      atomSet(ref, _atomList)
-      setTimeout(() => {
-        atomNotify(ref)
-      }, 0)
-    })()
-  } else {
-    const _atomList = atomGet(ref) as AtomList<T>
-    _atomList[Keys.ListValue] = atomListValue
-    _atomList[MapperId] = idMapper
-    atomSet(ref, _atomList)
-  }
+  const _atomList = atomGet(ref) as AtomList<T>
+  _atomList[Keys.ListValue] = atomListValue
+  _atomList[MapperId] = idMapper
+  atomSet(ref, _atomList)
 
   return ref
 }
@@ -333,7 +282,7 @@ export type AtomEffectOperator = (
     a: Atom | AtomList,
     v: Write<typeof a extends AtomList<any> ? typeof a[Keys.ListValue] : typeof a[Keys.Value]>,
   ) => void,
-) => void
+) => void | Promise<void>
 export type AtomEffectUnsubscribe = () => void
 export type AtomEffect = () => AtomEffectUnsubscribe
 
@@ -348,15 +297,23 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
         subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
       }
 
-      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
+      const storedAtom = atomGet(_atom)
+
+      return !storedAtom
+        ? undefined
+        : Keys.ListValue in storedAtom
+        ? atomListGetListValue(_atom as AtomList<any>)
+        : atomGetValue(_atom)
     }
 
     const set = (
       _atom: Atom | AtomList,
       value: Write<typeof _atom extends AtomList<any> ? typeof _atom[Keys.ListValue] : typeof _atom[Keys.Value]>,
     ) => {
-      if (Keys.ListValue in _atom) {
-        atomWriteList(_atom, value, { skipNotify: [run] })
+      const storedAtom = atomGet(_atom)
+      if (!storedAtom) return
+      if (Keys.ListValue in storedAtom) {
+        atomWriteList(_atom as AtomList<any>, value, { skipNotify: [run] })
       } else {
         atomWrite(_atom, value, { skipNotify: [run] })
       }
@@ -365,7 +322,9 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
     let deferId: any
     function run() {
       if (deferId) clearTimeout(deferId)
-      deferId = setTimeout(() => effect(get, set), 1)
+      deferId = setTimeout(async () => {
+        await effect(get, set)
+      }, 0)
     }
 
     run()
@@ -381,7 +340,7 @@ export const atomEffect = (effect: AtomEffectOperator): AtomEffect => {
   return start
 }
 
-export type AtomRefOperator<T = any> = (get: (a: Atom | AtomList) => any) => T
+export type AtomRefOperator<T = any> = (get: (a: Atom | AtomList) => any) => T | Promise<T>
 export type AtomRefReturn<T = any> = {
   value: () => T | undefined
   start: () => void
@@ -401,14 +360,20 @@ export const atomRef = <T = any>(ref: AtomRefOperator<T>, defaultValue?: T): Ato
         subscriptions.set(_atom, () => atomUnsubscribe(_atom, subscription))
       }
 
-      return Keys.ListValue in _atom ? atomListGetListValue(_atom) : atomGetValue(_atom)
+      const storedAtom = atomGet(_atom)
+
+      return !storedAtom
+        ? undefined
+        : Keys.ListValue in storedAtom
+        ? atomListGetListValue(_atom as AtomList<any>)
+        : atomGetValue(_atom)
     }
 
     let deferId: any
     function run() {
       if (deferId) clearTimeout(deferId)
-      deferId = setTimeout(() => {
-        value.current = ref(get)
+      deferId = setTimeout(async () => {
+        value.current = await ref(get)
         notify()
       }, 0)
     }
