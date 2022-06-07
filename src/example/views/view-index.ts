@@ -1,9 +1,13 @@
 import { html, component } from 'haunted'
+import { useAtom } from '../../ripple'
+import { showPostsAtom } from '../atoms/post'
 
 import '../elements/post-list'
 import '../elements/todo-list'
 
 function ViewIndex() {
+  const [showPosts] = useAtom(showPostsAtom)
+
   return html`
     <style>
       :host {
@@ -16,7 +20,7 @@ function ViewIndex() {
 
     <h1 id="title">Vite + Haunted</h1>
     <r-todo-list></r-todo-list>
-    <r-post-list></r-post-list>
+    ${showPosts ? html`<r-post-list></r-post-list>` : ''}
   `
 }
 
