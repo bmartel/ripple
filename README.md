@@ -7,7 +7,7 @@ Atom based state management for [Haunted](https://github.com/matthewp/haunted) w
 ## Installation
 
 ```bash
-npm i ripple haunted
+npm i @martel/ripple haunted
 ```
 
 ## Define an atom
@@ -34,4 +34,104 @@ function Counter() {
 }
 
 customElements.define('my-counter', component(Counter))
+```
+
+## Define an atomList
+
+```ts
+import { atomList } from '@martel/ripple'
+
+export interface IPost {
+  id: number
+  userId: number
+  title: string
+  body: string
+}
+
+export const postsAtom = atomList<IPost>([
+  {id: 1, userId: 1, body: 'foo', title: 'bar'},
+  {id: 2, userId: 1, body: 'baz', title: 'bar'},
+])
+```
+
+## Use the atomList
+
+```ts
+import { component, html } from 'haunted'
+import { repeat } from 'lit-html/directives/repeat.js'
+import { useAtomList } from '@martel/ripple'
+
+function PostList() {
+  const [posts] = useAtomList(postsAtom, { hydrateList: true }) // Load list of IPost[], not string[]
+  
+  return html`
+    <style>
+      :host {
+        display: block;
+        box-sizing: border-box;
+      }
+    </style>
+    ${posts
+      ? repeat(
+          posts as IPost[],
+          (p) => p.id,
+          (p) => html`<p>${p.body}</p>`,
+        )
+      : ''}
+  `
+}
+
+customElements.define('my-posts', component(PostList))
+```
+
+## Define an effect
+
+```ts
+import { atomList, atomEffect } from '@martel/ripple'
+
+export interface IPost {
+  id: number
+  userId: number
+  title: string
+  body: string
+}
+
+export const postsAtom = atomList<IPost>([])
+
+export const postsLoadEffect = atomEffect(async (get, set) => {
+  const posts = await fetch('http://jsonplaceholder.typicode.com/posts').then((res) => (res.ok ? res.json() : []))
+  set(postsAtom, posts)
+})
+```
+
+## Use the effect
+
+```ts
+import { component, html } from 'haunted'
+import { repeat } from 'lit-html/directives/repeat.js'
+import { useAtomList, useAtomEffect } from '@martel/ripple'
+
+function PostList() {
+  const [posts] = useAtomList(postsAtom, { hydrateList: true }) // Load list of IPost[], not string[]
+  
+  useAtomEffect(postsLoadEffect) // Handle async fetching
+  
+  return html`
+    <style>
+      :host {
+        display: block;
+        box-sizing: border-box;
+      }
+    </style>
+    ${posts
+      ? repeat(
+          posts as IPost[],
+          (p) => p.id,
+          (p) => html`<p>${p.body}</p>`,
+        )
+      : ''}
+  `
+}
+
+customElements.define('my-posts', component(PostList))
 ```
