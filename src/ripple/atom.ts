@@ -52,7 +52,7 @@ export type AtomListSnapshot<T = string[], L = any> = {
 
 export type Atom<T = any> = AtomSnapshot<T> & {
   [ReconcileId]: any
-  [StorageId]?: { key: string; type: 'local' | 'session' }
+  [StorageId]?: { key: string; type?: 'local' | 'session' }
   [VersionId]: number
   [HistoryId]: CustomSet<AtomSnapshot<T>>
   [DependentsId]: CustomSet<Read>
@@ -277,7 +277,7 @@ export const atom = <T = any>(value: T, config?: { storage?: { key: string; type
 
 export const atomList = <T = any>(
   value: T[],
-  config: { storage?: { key: string; type: 'local' | 'session' }; idMapper?: IdFunc } = { idMapper: defaultIdFunc },
+  config: { storage?: { key: string; type?: 'local' | 'session' }; idMapper?: IdFunc } = { idMapper: defaultIdFunc },
 ): AtomList<T> => {
   const { storage, idMapper = defaultIdFunc } = config
   const atomListValue: AtomList<T>[Keys.ListValue] = {}

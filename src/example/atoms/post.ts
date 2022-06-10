@@ -8,7 +8,7 @@ export interface IPost {
 }
 
 export const postListLoadingAtom = atom(true)
-export const postListAtom = atomList<IPost>([])
+export const postListAtom = atomList<IPost>([], { storage: { key: 'r:posts' } })
 
 export const postListCountAtom = atomRef<number>((get) => {
   console.log('called postListCountAtom')
