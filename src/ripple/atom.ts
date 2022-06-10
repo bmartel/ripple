@@ -7,7 +7,7 @@ export enum Keys {
   Self = '.',
 }
 
-export const InitId = Symbol('ripple.initId')
+export const StorageId = Symbol('ripple.storageId')
 export const ReconcileId = Symbol('ripple.reconcileId')
 export const MapperId = Symbol('ripple.MapperId')
 export const LastId = Symbol('ripple.lastId')
@@ -52,7 +52,7 @@ export type AtomListSnapshot<T = string[], L = any> = {
 
 export type Atom<T = any> = AtomSnapshot<T> & {
   [ReconcileId]: any
-  [InitId]: boolean
+  [StorageId]?: { key: string; type: 'local' | 'session' }
   [VersionId]: number
   [HistoryId]: CustomSet<AtomSnapshot<T>>
   [DependentsId]: CustomSet<Read>
@@ -94,7 +94,6 @@ export const atomSetValue = <T = any>(atom: Atom<T> | AtomList<T>, v: T): void =
   const _current = atomGet<T>(atom)
   if (_current && Keys.Value in _current) {
     _current[Keys.Value] = v
-    _current[InitId] = true
     atomSet(atom, _current)
   }
 }
@@ -126,6 +125,7 @@ export const atomNotify = <T, A extends Atom<T>>(atom: A, skip: Read[Keys.Read][
 export type AtomWriteConfig<T extends Atom> = {
   reducer?: AtomReducer<T>
   skipNotify?: Read[Keys.Read][]
+  storage?: { key: string; type?: 'local' | 'session' }
 }
 export const atomWrite = <T, A extends Atom<T>>(
   atom: A,
@@ -162,6 +162,10 @@ export const atomWrite = <T, A extends Atom<T>>(
         _current[Keys.Value] = update[Keys.Value]
         _current[Keys.Version] = update[Keys.Version]
         atomSet(atom, _current)
+        const storage = _current[StorageId]
+        if (storage?.key) {
+          window[`${storage?.type || 'local'}Storage`].setItem(storage!.key!, JSON.stringify(_current[Keys.Value]))
+        }
         if (process.env.NODE_ENV !== 'production') {
           //
         }
@@ -175,7 +179,9 @@ export const atomWrite = <T, A extends Atom<T>>(
 export const atomWriteList = <T = any>(
   atomList: AtomList<T>,
   update: Write<typeof atomList[Keys.ListValue]['id'][Keys.Value][]>,
-  { skipNotify = [] }: { skipNotify: Read[Keys.Read][] } = { skipNotify: [] },
+  { skipNotify = [] }: { skipNotify: Read[Keys.Read][] } = {
+    skipNotify: [],
+  },
 ) => {
   let next: typeof atomList[Keys.ListValue]['id'][Keys.Value][]
 
@@ -226,6 +232,14 @@ export const atomWriteList = <T = any>(
       })
       _current[Keys.Version] = update[Keys.Version]
       atomSet(atomList, _current)
+
+      const storage = _current[StorageId]
+      if (storage?.key) {
+        window[`${storage?.type || 'local'}Storage`].setItem(
+          storage!.key!,
+          JSON.stringify(atomListGetListValue(atomList as AtomList)),
+        )
+      }
       if (process.env.NODE_ENV !== 'production') {
         //
       }
@@ -236,17 +250,23 @@ export const atomWriteList = <T = any>(
   atomSet(atomList, _current)
 }
 
-export const atom = <T = any>(value: T): Atom<T> => {
+export const atom = <T = any>(value: T, config?: { storage?: { key: string; type: 'local' | 'session' } }): Atom<T> => {
   const ref = {} as Atom<T>
 
+  if (config?.storage?.key) {
+    const _v = window[`${config?.storage?.type || 'local'}Storage`].getItem(config.storage.key) || ''
+    if (_v) {
+      value = JSON.parse(_v)
+    }
+  }
   atomSet(
     ref as any,
     {
       [ReconcileId]: null,
       [HistoryId]: new CustomSet(),
       [DependentsId]: new CustomSet(),
-      [InitId]: true,
       [VersionId]: 0,
+      [StorageId]: config?.storage,
       [Keys.Value]: value as any,
       [Keys.Version]: 0,
     } as Atom<T>,
@@ -255,8 +275,19 @@ export const atom = <T = any>(value: T): Atom<T> => {
   return ref as any
 }
 
-export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
+export const atomList = <T = any>(
+  value: T[],
+  config: { storage?: { key: string; type: 'local' | 'session' }; idMapper?: IdFunc } = { idMapper: defaultIdFunc },
+): AtomList<T> => {
+  const { storage, idMapper = defaultIdFunc } = config
   const atomListValue: AtomList<T>[Keys.ListValue] = {}
+
+  if (config?.storage?.key) {
+    const _v = window[`${config?.storage?.type || 'local'}Storage`].getItem(config.storage.key) || ''
+    if (_v) {
+      value = JSON.parse(_v)
+    }
+  }
 
   const idList = value.map((v) => {
     const id = idMapper(v)
@@ -271,6 +302,7 @@ export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc):
   const _atomList = atomGet(ref) as AtomList<T>
   _atomList[Keys.ListValue] = atomListValue
   _atomList[MapperId] = idMapper
+  _atomList[StorageId] = storage
   atomSet(ref, _atomList)
 
   return ref
