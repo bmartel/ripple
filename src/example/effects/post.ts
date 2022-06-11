@@ -1,5 +1,6 @@
 import { atomEffect } from '../../ripple/atom'
-import { postListAtom, postListLoadingAtom, showPostCountAtom, showPostsAtom } from '../atoms/post'
+import { postListAtom, postListLoadingAtom, showPostCountAtom } from '../atoms/post'
+import { showPostsAtom } from '../atoms/content'
 
 export const postListLoadingEffect = atomEffect(async (get, set) => {
   const postsLoaded = get(postListAtom)

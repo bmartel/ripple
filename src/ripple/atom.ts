@@ -73,6 +73,9 @@ export const atomGet = <T = any>(atom: Atom<T> | AtomList<T>): Atom<T> | AtomLis
 export const atomSet = <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomList<T>): void => {
   state.set(atom, v)
 }
+export const atomDelete = <T = any>(atom: Atom<T> | AtomList<T>): void => {
+  state.delete(atom)
+}
 
 export const atomSubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<typeof atom>): void => {
   const _current = atomGet<T>(atom)
@@ -85,7 +88,11 @@ export const atomUnsubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscripti
   const _current = atomGet<T>(atom)
   if (_current && DependentsId in _current) {
     _current[DependentsId].delete(subscription)
-    atomSet(atom, _current)
+    if (!_current[DependentsId].size) {
+      atomSet(atom, _current)
+    } else {
+      atomDelete(atom)
+    }
   }
 }
 export const atomGetValue = <T extends AtomSnapshot>(atom: Atom<T> | AtomList<T>): AtomValue<T> | undefined =>

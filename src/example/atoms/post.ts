@@ -15,4 +15,3 @@ export const postListCountAtom = atomRef<number>((get) => {
   return get(postListAtom)?.length || 0
 }, 0)
 export const showPostCountAtom = atom(true)
-export const showPostsAtom = atom(true)
