@@ -1,1 +1,1 @@
-export {};
+import './post-count';

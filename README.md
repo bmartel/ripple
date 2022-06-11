@@ -49,8 +49,8 @@ export interface IPost {
 }
 
 export const postsAtom = atomList<IPost>([
-  {id: 1, userId: 1, body: 'foo', title: 'bar'},
-  {id: 2, userId: 1, body: 'baz', title: 'bar'},
+  { id: 1, userId: 1, body: 'foo', title: 'bar' },
+  { id: 2, userId: 1, body: 'baz', title: 'bar' },
 ])
 ```
 
@@ -63,7 +63,7 @@ import { useAtomList } from '@martel/ripple'
 
 function PostList() {
   const [posts] = useAtomList(postsAtom, { hydrateList: true }) // Load list of IPost[], not string[]
-  
+
   return html`
     <style>
       :host {
@@ -104,7 +104,7 @@ export const postsLoadEffect = atomEffect(async (get, set) => {
     const posts = await fetch('http://jsonplaceholder.typicode.com/posts').then((res) => (res.ok ? res.json() : []))
     set(postsAtom, posts)
     set(countAtom, posts.length) // calls to set an atom will trigger a recompute of any other subscribers outside of this immediate effect
-  }  
+  }
 })
 ```
 
@@ -117,9 +117,9 @@ import { useAtomList, useAtomEffect } from '@martel/ripple'
 
 function PostList() {
   const [posts] = useAtomList(postsAtom, { hydrateList: true }) // Load list of IPost[], not string[]
-  
+
   useAtomEffect(postsLoadEffect) // Handle async fetching
-  
+
   return html`
     <style>
       :host {
@@ -154,7 +154,7 @@ export interface IPost {
 
 export const postsCountRef = atomRef<number>((get) => {
   const postsCount = get(postsAtom)?.length // anytime postsAtom changes, this ref will recompute
-  
+
   return postsCount || 0
 })
 ```
@@ -168,7 +168,49 @@ import { useAtomRef } from '@martel/ripple'
 function PostsCount() {
   const count = useAtomRef(postsCountRef)
 
-  return html`
-    <div id="count">${count}</div>
-  `
+  return html` <div id="count">${count}</div> `
 }
+```
+
+## Atom Storage
+
+### Init atom stores (required only for indexeddb usage of non default db or stores)
+
+Define any stores that can be in use for any of your component atoms.
+
+```ts
+import { initAtomStorage } from '@martel/ripple'
+
+// default db name is rpldata
+// default store name is rpldata
+// default version is 1
+initAtomStorage({ version: 1 }, ['posts'])
+```
+
+### Define an atom backed by storage
+
+LocalStorage (default)
+
+```ts
+import { atom } from '@martel/ripple'
+
+// default storage is 'local'
+const postAtom = atom({ id: '1', body: 'test' }, { key: 'post:1' })
+// const postAtom = atom({ id: '1', body: 'test' }, { key: 'post:1', type: 'local' })
+```
+
+SessionStorage
+
+```ts
+import { atom } from '@martel/ripple'
+
+const postAtom = atom({ id: '1', body: 'test' }, { key: 'post:1', type: 'session' })
+```
+
+Indexeddb
+
+```ts
+import { atom } from '@martel/ripple'
+
+const postAtom = atom({ id: '1', body: 'test' }, { key: 'post:1', type: 'indexeddb', store: 'posts' })
+```

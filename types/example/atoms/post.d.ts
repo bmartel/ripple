@@ -4,5 +4,7 @@ export interface IPost {
     title: string;
     body: string;
 }
-export declare const postAtom: import("../../ripple").Atom<IPost>;
+export declare const postListLoadingAtom: import("../../ripple").Atom<boolean>;
 export declare const postListAtom: import("../../ripple").AtomList<IPost>;
+export declare const postListCountAtom: import("../../ripple").AtomRef<number>;
+export declare const showPostCountAtom: import("../../ripple").Atom<boolean>;
