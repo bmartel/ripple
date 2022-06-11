@@ -1,3 +1,5 @@
+import { Storage, StorageConfig, StorageType } from './storage'
+
 export enum Keys {
   Value = '=',
   ListValue = '==',
@@ -7,6 +9,11 @@ export enum Keys {
   Self = '.',
 }
 
+const store = new Storage()
+export const initAtomStorage = (config: StorageConfig, stores: string[] = []) => {
+  new Storage(config).registerStore(stores)
+}
+export const StorageId = Symbol('ripple.storageId')
 export const InitId = Symbol('ripple.initId')
 export const ReconcileId = Symbol('ripple.reconcileId')
 export const MapperId = Symbol('ripple.MapperId')
@@ -52,6 +59,7 @@ export type AtomListSnapshot<T = string[], L = any> = {
 
 export type Atom<T = any> = AtomSnapshot<T> & {
   [ReconcileId]: any
+  [StorageId]?: StorageConfig
   [InitId]: boolean
   [VersionId]: number
   [HistoryId]: CustomSet<AtomSnapshot<T>>
@@ -73,6 +81,13 @@ export const atomGet = <T = any>(atom: Atom<T> | AtomList<T>): Atom<T> | AtomLis
 export const atomSet = <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomList<T>): void => {
   state.set(atom, v)
 }
+export const atomPatch = <T = any>(atom: Atom<T> | AtomList<T>, v: Atom<T> | AtomList<T>): void => {
+  state.set(atom, { ...atomGet(atom as any), ...v })
+}
+export const atomDelete = <T = any>(atom: Atom<T> | AtomList<T>): void => {
+  state.delete(atom)
+}
+export const atomIsInit = <T = any>(atom: Atom<T> | AtomList<T>): boolean => !!atomGet(atom)?.[InitId]
 
 export const atomSubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscription: Read<typeof atom>): void => {
   const _current = atomGet<T>(atom)
@@ -85,7 +100,11 @@ export const atomUnsubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscripti
   const _current = atomGet<T>(atom)
   if (_current && DependentsId in _current) {
     _current[DependentsId].delete(subscription)
-    atomSet(atom, _current)
+    if (!_current[DependentsId].size) {
+      atomSet(atom, _current)
+    } else {
+      atomDelete(atom)
+    }
   }
 }
 export const atomGetValue = <T extends AtomSnapshot>(atom: Atom<T> | AtomList<T>): AtomValue<T> | undefined =>
@@ -94,7 +113,6 @@ export const atomSetValue = <T = any>(atom: Atom<T> | AtomList<T>, v: T): void =
   const _current = atomGet<T>(atom)
   if (_current && Keys.Value in _current) {
     _current[Keys.Value] = v
-    _current[InitId] = true
     atomSet(atom, _current)
   }
 }
@@ -126,6 +144,7 @@ export const atomNotify = <T, A extends Atom<T>>(atom: A, skip: Read[Keys.Read][
 export type AtomWriteConfig<T extends Atom> = {
   reducer?: AtomReducer<T>
   skipNotify?: Read[Keys.Read][]
+  storage?: { key: string; type?: StorageType }
 }
 export const atomWrite = <T, A extends Atom<T>>(
   atom: A,
@@ -145,7 +164,7 @@ export const atomWrite = <T, A extends Atom<T>>(
   if (next !== _current[Keys.Value]) {
     _current[HistoryId].add({ [Keys.Value]: next, [Keys.Version]: ++_current[VersionId] })
     if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
-    _current[ReconcileId] = setTimeout(() => {
+    _current[ReconcileId] = setTimeout(async () => {
       _current = atomGet(atom) as typeof atom
       if (!_current) return
       const update = reducer
@@ -162,6 +181,11 @@ export const atomWrite = <T, A extends Atom<T>>(
         _current[Keys.Value] = update[Keys.Value]
         _current[Keys.Version] = update[Keys.Version]
         atomSet(atom, _current)
+
+        const storage = _current[StorageId]
+        if (storage?.key) {
+          await store.using(storage.type, storage.store).set(storage!.key!, _current[Keys.Value])
+        }
         if (process.env.NODE_ENV !== 'production') {
           //
         }
@@ -175,7 +199,9 @@ export const atomWrite = <T, A extends Atom<T>>(
 export const atomWriteList = <T = any>(
   atomList: AtomList<T>,
   update: Write<typeof atomList[Keys.ListValue]['id'][Keys.Value][]>,
-  { skipNotify = [] }: { skipNotify: Read[Keys.Read][] } = { skipNotify: [] },
+  { skipNotify = [] }: { skipNotify: Read[Keys.Read][] } = {
+    skipNotify: [],
+  },
 ) => {
   let next: typeof atomList[Keys.ListValue]['id'][Keys.Value][]
 
@@ -205,7 +231,7 @@ export const atomWriteList = <T = any>(
     [Keys.Version]: ++_current[VersionId],
   })
   if (_current[ReconcileId]) clearTimeout(_current[ReconcileId])
-  _current[ReconcileId] = setTimeout(() => {
+  _current[ReconcileId] = setTimeout(async () => {
     _current = atomGet(atomList) as typeof atomList
     if (!_current) return
 
@@ -226,6 +252,11 @@ export const atomWriteList = <T = any>(
       })
       _current[Keys.Version] = update[Keys.Version]
       atomSet(atomList, _current)
+
+      const storage = _current[StorageId]
+      if (storage?.key) {
+        await store.using(storage.type, storage.store).set(storage!.key!, atomListGetListValue(atomList as AtomList))
+      }
       if (process.env.NODE_ENV !== 'production') {
         //
       }
@@ -236,42 +267,99 @@ export const atomWriteList = <T = any>(
   atomSet(atomList, _current)
 }
 
-export const atom = <T = any>(value: T): Atom<T> => {
+export const atom = <T = any>(value: T, config?: { storage?: StorageConfig }): Atom<T> => {
   const ref = {} as Atom<T>
-
   atomSet(
     ref as any,
     {
       [ReconcileId]: null,
       [HistoryId]: new CustomSet(),
       [DependentsId]: new CustomSet(),
-      [InitId]: true,
       [VersionId]: 0,
+      [InitId]: !config?.storage?.key,
+      [StorageId]: config?.storage,
       [Keys.Value]: value as any,
       [Keys.Version]: 0,
     } as Atom<T>,
   )
 
+  if (config?.storage?.key) {
+    const storageType = config?.storage?.type || 'local'
+    const storeName = config?.storage?.store
+    store
+      .using(storageType, storeName)
+      .get(config.storage.key)
+      .then((val: T | null) => {
+        atomPatch(
+          ref as any,
+          {
+            [Keys.Value]: val as any,
+            [InitId]: true,
+          } as Atom<T>,
+        )
+        atomNotify(ref as any)
+      })
+  }
+
   return ref as any
 }
 
-export const atomList = <T = any>(value: T[], idMapper: IdFunc = defaultIdFunc): AtomList<T> => {
+export const atomList = <T = any>(
+  value: T[],
+  config: { storage?: StorageConfig; idMapper?: IdFunc } = { idMapper: defaultIdFunc },
+): AtomList<T> => {
+  const { idMapper = defaultIdFunc } = config
   const atomListValue: AtomList<T>[Keys.ListValue] = {}
 
-  const idList = value.map((v) => {
-    const id = idMapper(v)
-    if (!(id in atomListValue)) {
-      atomListValue[id] = atom(v)
-    }
-    return id
-  })
+  let idList: string[] = []
+
+  if (!config?.storage?.key) {
+    idList = value.map((v) => {
+      const id = idMapper(v)
+      if (!(id in atomListValue)) {
+        atomListValue[id] = atom(v)
+      }
+      return id
+    })
+  }
 
   const ref = atom(idList) as AtomList<T>
 
   const _atomList = atomGet(ref) as AtomList<T>
   _atomList[Keys.ListValue] = atomListValue
   _atomList[MapperId] = idMapper
+  _atomList[StorageId] = config.storage
+  _atomList[InitId] = !config.storage?.key
   atomSet(ref, _atomList)
+
+  if (config?.storage?.key) {
+    const storageType = config?.storage?.type || 'local'
+    const storeName = config?.storage?.store
+
+    store
+      .using(storageType, storeName)
+      .get(config.storage.key)
+      .then((val: T[] | null) => {
+        if (val) {
+          idList = val.map((v) => {
+            const id = idMapper(v)
+            if (!(id in atomListValue)) {
+              atomListValue[id] = atom(v)
+            }
+            return id
+          })
+          atomPatch(
+            ref as any,
+            {
+              [Keys.Value]: idList,
+              [Keys.ListValue]: atomListValue,
+              [InitId]: true,
+            } as AtomList<T>,
+          )
+          atomNotify(ref as any)
+        }
+      })
+  }
 
   return ref
 }

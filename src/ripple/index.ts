@@ -20,6 +20,7 @@ import {
   atomRef,
   atomGet,
   atomSet,
+  atomPatch,
   atomWrite,
   atomWriteList,
   atomSubscribe,
@@ -29,6 +30,8 @@ import {
   atomSetValue,
   atomListGetListValue,
   atomListGetValue,
+  atomIsInit,
+  initAtomStorage,
 } from './atom'
 import { useAtom, useAtomList, useAtomSelector, useAtomEffect, useAtomRef } from './hooks'
 
@@ -55,6 +58,7 @@ export {
   atomRef,
   atomGet,
   atomSet,
+  atomPatch,
   atomWrite,
   atomWriteList,
   atomSubscribe,
@@ -69,4 +73,6 @@ export {
   useAtomSelector,
   useAtomEffect,
   useAtomRef,
+  initAtomStorage,
+  atomIsInit,
 }

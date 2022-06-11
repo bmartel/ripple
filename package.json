@@ -27,7 +27,8 @@
     "preversion": "npm run build"
   },
   "dependencies": {
-    "haunted": ">=4.8.3"
+    "haunted": ">=4.8.3",
+    "idb": "^7.0.1"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",

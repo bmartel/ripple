@@ -8,11 +8,10 @@ export interface IPost {
 }
 
 export const postListLoadingAtom = atom(true)
-export const postListAtom = atomList<IPost>([])
+export const postListAtom = atomList<IPost>([], { storage: { key: 'recent', store: 'posts', type: 'indexeddb' } })
 
 export const postListCountAtom = atomRef<number>((get) => {
   console.log('called postListCountAtom')
   return get(postListAtom)?.length || 0
 }, 0)
 export const showPostCountAtom = atom(true)
-export const showPostsAtom = atom(true)

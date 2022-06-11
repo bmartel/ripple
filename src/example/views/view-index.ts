@@ -1,12 +1,17 @@
 import { html, component } from 'haunted'
-import { useAtom } from '../../ripple'
-import { showPostsAtom } from '../atoms/post'
+import { initAtomStorage, useAtom } from '../../ripple'
+import { showPostsAtom } from '../atoms/content'
 
-import '../elements/post-list'
 import '../elements/todo-list'
+
+initAtomStorage({ version: 1 }, ['posts'])
 
 function ViewIndex() {
   const [showPosts] = useAtom(showPostsAtom)
+
+  if (showPosts) {
+    import('../elements/post-list')
+  }
 
   return html`
     <style>

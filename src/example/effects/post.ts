@@ -1,9 +1,10 @@
-import { atomEffect } from '../../ripple/atom'
-import { postListAtom, postListLoadingAtom, showPostCountAtom, showPostsAtom } from '../atoms/post'
+import { atomEffect, atomIsInit } from '../../ripple/atom'
+import { postListAtom, postListLoadingAtom, showPostCountAtom } from '../atoms/post'
+import { showPostsAtom } from '../atoms/content'
 
 export const postListLoadingEffect = atomEffect(async (get, set) => {
   const postsLoaded = get(postListAtom)
-  if (!postsLoaded.length) {
+  if (atomIsInit(postListAtom) && !postsLoaded.length) {
     const posts = await fetch('http://jsonplaceholder.typicode.com/posts').then((res) => (res.ok ? res.json() : []))
     set(postListAtom, posts)
   }
