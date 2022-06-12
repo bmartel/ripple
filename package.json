@@ -4,7 +4,11 @@
   "main": "./dist/ripple.umd.js",
   "module": "./dist/ripple.es.js",
   "exports": {
-    ".": {
+    "worker": {
+      "import": "./dist-worker/worker.es.js",
+      "require": "./dist-worker/worker.umd.js"
+    },
+    "ripple": {
       "import": "./dist/ripple.es.js",
       "require": "./dist/ripple.umd.js"
     }
@@ -13,11 +17,16 @@
   "files": [
     "dist/ripple.es.js",
     "dist/ripple.umd.js",
+    "dist-worker/worker.es.js",
+    "dist-worker/worker.umd.js",
     "types/ripple"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build:types && npm run build:lib && npm run build:worker",
+    "build:types": "tsc",
+    "build:lib": "vite build --config vite.config.ts",
+    "build:worker": "vite build --config vite.config.worker.ts",
     "preview": "vite preview",
     "lint": "eslint --fix src",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
@@ -27,8 +36,9 @@
     "preversion": "npm run build"
   },
   "dependencies": {
+    "comlink": ">=4.3.1",
     "haunted": ">=4.8.3",
-    "idb": "^7.0.1"
+    "idb": ">=7.0.1"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
