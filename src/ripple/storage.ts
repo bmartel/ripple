@@ -1,4 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb'
+import { BackgroundFetch } from './background'
 
 export type StorageType = 'local' | 'session' | 'indexeddb'
 export type StorageConfig = {
@@ -7,6 +8,7 @@ export type StorageConfig = {
   store?: string
   key?: string
   type?: StorageType
+  backgroundFetch?: BackgroundFetch
 }
 
 export type StorageConfigComplete = {
@@ -15,6 +17,7 @@ export type StorageConfigComplete = {
   store: string
   key: string
   type: StorageType
+  backgroundFetch?: BackgroundFetch
 }
 
 export class Storage {

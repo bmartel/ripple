@@ -10,6 +10,7 @@ export default defineConfig({
           lib: {
             entry: resolve(__dirname, 'src/ripple/index.ts'),
             name: 'Ripple',
+            fileName: (format) => `ripple.${format}.js`,
           },
           rollupOptions: {
             external: ['haunted'],

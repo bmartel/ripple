@@ -1,3 +1,4 @@
+import { backgroundFetch, cancelBackgroundFetch, initWorker } from './background'
 import { Storage, StorageConfig, StorageType } from './storage'
 
 export enum Keys {
@@ -10,8 +11,17 @@ export enum Keys {
 }
 
 const store = new Storage()
-export const initAtomStorage = (config: StorageConfig, stores: string[] = []) => {
-  new Storage(config).registerStore(stores)
+export const initAtomStorage = (
+  config: StorageConfig,
+  stores: string[] = [],
+  worker?: () => Promise<new () => Worker>,
+): Storage => {
+  if (worker) {
+    initWorker(worker)
+  }
+  const instance = new Storage(config)
+  instance.registerStore(stores)
+  return instance
 }
 export const StorageId = Symbol('ripple.storageId')
 export const InitId = Symbol('ripple.initId')
@@ -105,6 +115,10 @@ export const atomUnsubscribe = <T = any>(atom: Atom<T> | AtomList<T>, subscripti
     if (!_current[DependentsId].size) {
       atomSet(atom, _current)
     } else {
+      if (_current?.[StorageId]?.backgroundFetch) {
+        const { url, onFetch: _onFetch, ...init } = _current![StorageId]!.backgroundFetch!
+        cancelBackgroundFetch(url, init)
+      }
       atomDelete(atom)
     }
   }
@@ -285,6 +299,10 @@ export const atom = <T = any>(value: T, config?: { storage?: StorageConfig }): A
     } as Atom<T>,
   )
 
+  if (config?.storage?.backgroundFetch) {
+    const { url, onFetch, ...init } = config.storage.backgroundFetch
+    backgroundFetch(url, onFetch, init)
+  }
   if (config?.storage?.key) {
     const storageType = config?.storage?.type || 'local'
     const storeName = config?.storage?.store
@@ -333,6 +351,11 @@ export const atomList = <T = any>(
   _atomList[StorageId] = config.storage
   _atomList[InitId] = !config.storage?.key
   atomSet(ref, _atomList)
+
+  if (config?.storage?.backgroundFetch) {
+    const { url, onFetch, ...init } = config.storage.backgroundFetch
+    backgroundFetch(url, onFetch, init)
+  }
 
   if (config?.storage?.key) {
     const storageType = config?.storage?.type || 'local'

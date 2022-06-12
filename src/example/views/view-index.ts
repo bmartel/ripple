@@ -4,7 +4,9 @@ import { showPostsAtom } from '../atoms/content'
 
 import '../elements/todo-list'
 
-initAtomStorage({ version: 1 }, ['posts'])
+initAtomStorage({ version: 1 }, ['posts'], async () => {
+  return (await import('../../ripple/worker?worker')).default
+})
 
 function ViewIndex() {
   const [showPosts] = useAtom(showPostsAtom)

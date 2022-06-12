@@ -1,4 +1,4 @@
-import { StorageConfig, StorageType } from './storage';
+import { Storage, StorageConfig, StorageType } from './storage';
 export declare enum Keys {
     Value = "=",
     ListValue = "==",
@@ -7,7 +7,7 @@ export declare enum Keys {
     Write = ">",
     Self = "."
 }
-export declare const initAtomStorage: (config: StorageConfig, stores?: string[]) => void;
+export declare const initAtomStorage: (config: StorageConfig, stores?: string[], worker?: (() => Promise<new () => Worker>) | undefined) => Storage;
 export declare const StorageId: unique symbol;
 export declare const InitId: unique symbol;
 export declare const ReconcileId: unique symbol;

@@ -1,4 +1,5 @@
 import { IDBPDatabase } from 'idb';
+import { BackgroundFetch } from './background';
 export declare type StorageType = 'local' | 'session' | 'indexeddb';
 export declare type StorageConfig = {
     name?: string;
@@ -6,6 +7,7 @@ export declare type StorageConfig = {
     store?: string;
     key?: string;
     type?: StorageType;
+    backgroundFetch?: BackgroundFetch;
 };
 export declare type StorageConfigComplete = {
     name: string;
@@ -13,6 +15,7 @@ export declare type StorageConfigComplete = {
     store: string;
     key: string;
     type: StorageType;
+    backgroundFetch?: BackgroundFetch;
 };
 export declare class Storage {
     static db: IDBPDatabase | null;
