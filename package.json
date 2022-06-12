@@ -4,11 +4,7 @@
   "main": "./dist/ripple.umd.js",
   "module": "./dist/ripple.es.js",
   "exports": {
-    "worker": {
-      "import": "./dist-worker/worker.es.js",
-      "require": "./dist-worker/worker.umd.js"
-    },
-    "ripple": {
+    ".": {
       "import": "./dist/ripple.es.js",
       "require": "./dist/ripple.umd.js"
     }
