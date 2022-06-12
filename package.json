@@ -7,6 +7,10 @@
     ".": {
       "import": "./dist/ripple.es.js",
       "require": "./dist/ripple.umd.js"
+    },
+    "worker": {
+      "import": "./dist-worker/worker.es.js",
+      "require": "./dist-worker/worker.umd.js"
     }
   },
   "types": "./types/ripple/index.d.ts",
