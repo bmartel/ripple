@@ -97,4 +97,35 @@ export class Storage {
         return localStorage.setItem(key, JSON.stringify(value))
     }
   }
+
+  async remove(key: string): Promise<void> {
+    switch (this.config.type) {
+      case 'indexeddb':
+        await this.open()
+        if (!this.config.store || !this.ensureStore(this.config.store)) return
+        const tx = Storage.db!.transaction(this.config.store, 'readwrite').objectStore(this.config.store)
+        await tx.delete(key)
+        return
+      case 'session':
+        return sessionStorage.removeItem(key)
+      case 'local':
+      default:
+        return localStorage.removeItem(key)
+    }
+  }
+
+  async has(key: string): Promise<boolean> {
+    switch (this.config.type) {
+      case 'indexeddb':
+        await this.open()
+        if (!this.config.store || !this.ensureStore(this.config.store)) return false
+        const tx = Storage.db!.transaction(this.config.store).objectStore(this.config.store)
+        return (await tx.count(key)) > 0
+      case 'session':
+        return key in sessionStorage
+      case 'local':
+      default:
+        return key in localStorage
+    }
+  }
 }

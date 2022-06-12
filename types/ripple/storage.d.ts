@@ -26,4 +26,6 @@ export declare class Storage {
     ensureStore(store: string): boolean;
     get<T = any>(key: string): Promise<T | null>;
     set<T = any>(key: string, value: T): Promise<void>;
+    remove(key: string): Promise<void>;
+    has(key: string): Promise<boolean>;
 }

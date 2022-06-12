@@ -26,6 +26,8 @@ export type IdFunc = (v: any) => string
 export const defaultIdFunc: IdFunc = (v: any): string => v?.id
 
 class CustomSet<T = any> extends Set<T> {
+  // eslint-disable-next-line
+  // @ts-ignore
   [LastId]: T
 
   add(value: T) {
