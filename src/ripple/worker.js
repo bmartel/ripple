@@ -20,8 +20,9 @@ setInterval(() => {
     f.init = f.init || {}
     const fetchedAt = f.fetchedAt || 0
     const { refetch = 0, ..._init } = f.init
-    if (Date.now() - refetch > fetchedAt * 1000) {
-      f.fetchedAt = Date.now()
+    const now = Date.now()
+    if (now - refetch * 1000 > fetchedAt) {
+      f.fetchedAt = now
       refetchable.set(id, f)
       fetch(f.input, _init).then(async (res) => {
         const headers = {}
