@@ -16,10 +16,7 @@
   },
   "types": "./src/ripple/index.d.ts",
   "files": [
-    "dist/ripple.es.js",
-    "dist/ripple.umd.js",
-    "dist/worker.es.js",
-    "dist/worker.umd.js",
+    "dist",
     "src/ripple"
   ],
   "scripts": {
