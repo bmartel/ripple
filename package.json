@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:types && npm run build:lib && build:fix-types",
+    "build": "npm run build:types && npm run build:lib && npm run build:fix-types",
     "build:types": "tsc",
     "build:fix-types": "mv src/ripple/index.ts src/ripple/index.d.ts",
     "build:lib": "microbundle ./index.ts ./worker.js",
