@@ -29,9 +29,16 @@ setInterval(() => {
         for (const [key, value] of res.headers) {
           headers[key] = value
         }
-        const isJson = headers["content-type"]?.startsWith("application/json")
+        const isJson = headers['content-type']?.startsWith('application/json')
         const body = isJson ? await res.json() : await res.text()
-        return f.onFetch({ headers, ok: res.ok, redirected: res.redirected, status: res.status, statusText: res.statusText, body })
+        return f.onFetch({
+          headers,
+          ok: res.ok,
+          redirected: res.redirected,
+          status: res.status,
+          statusText: res.statusText,
+          body,
+        })
       })
     }
   }
@@ -54,9 +61,16 @@ const background = {
         for (const [key, value] of res.headers) {
           headers[key] = value
         }
-        const isJson = headers["content-type"]?.startsWith("application/json")
+        const isJson = headers['content-type']?.startsWith('application/json')
         const body = isJson ? await res.json() : await res.text()
-        return onFetch({ headers, ok: res.ok, redirected: res.redirected, status: res.status, statusText: res.statusText, body })
+        return onFetch({
+          headers,
+          ok: res.ok,
+          redirected: res.redirected,
+          status: res.status,
+          statusText: res.statusText,
+          body,
+        })
       })
     }
   },
