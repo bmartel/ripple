@@ -7,11 +7,11 @@
   "exports": {
     ".": {
       "import": "./dist/ripple.modern.mjs",
-      "require": "./dist/ripple.cjs"
+      "require": "./dist/ripple.js"
     },
     "./worker": {
       "import": "./dist/worker.modern.mjs",
-      "require": "./dist/worker.cjs"
+      "require": "./dist/worker.js"
     }
   },
   "types": "./src/ripple/index.d.ts",
