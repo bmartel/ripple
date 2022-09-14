@@ -1,32 +1,32 @@
 {
   "name": "@martel/ripple",
   "version": "0.6.4",
+  "source": "src/ripple/index.ts",
   "main": "./dist/ripple.umd.js",
-  "module": "./dist/ripple.es.js",
+  "module": "./dist/ripple.module.mjs",
   "exports": {
     ".": {
-      "import": "./dist/ripple.es.js",
-      "require": "./dist/ripple.umd.js"
+      "import": "./dist/ripple.modern.mjs",
+      "require": "./dist/ripple.cjs"
     },
     "./worker": {
-      "import": "./dist-worker/worker.es.js",
-      "require": "./dist-worker/worker.umd.js"
+      "import": "./dist/worker.modern.mjs",
+      "require": "./dist/worker.cjs"
     }
   },
-  "types": "./types/ripple/index.d.ts",
+  "types": "./src/ripple/index.d.ts",
   "files": [
     "dist/ripple.es.js",
     "dist/ripple.umd.js",
-    "dist-worker/worker.es.js",
-    "dist-worker/worker.umd.js",
-    "types/ripple"
+    "dist/worker.es.js",
+    "dist/worker.umd.js",
+    "src/ripple"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:types && npm run build:lib && npm run build:worker",
+    "build": "npm run build:types && npm run build:lib",
     "build:types": "tsc",
-    "build:lib": "vite build --config vite.config.ts",
-    "build:worker": "vite build --config vite.config.worker.ts",
+    "build:lib": "microbundle ./index.ts ./worker.ts",
     "preview": "vite preview",
     "lint": "eslint --fix src",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
@@ -55,6 +55,7 @@
     "jest": "26.0.1",
     "lint-staged": "^12.4.0",
     "lit-html": "^1.0.0",
+    "microbundle": "^0.15.1",
     "prettier": "^2.6.2",
     "typescript": "^4.5.4",
     "vite": "^2.9.5",

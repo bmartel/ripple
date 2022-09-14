@@ -13,6 +13,10 @@ dist-ssr
 dist-worker
 *.local
 
+/src/**/*.js
+/src/**/*.d.ts
+/types
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
