@@ -30,7 +30,9 @@
     "preview": "vite preview",
     "lint": "eslint --fix src",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
+    "clean": "rm -rf src/**/*.js",
     "test": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium",
+    "pretest": "npm run clean",
     "test:watch": "web-test-runner \"src/**/*.spec.ts\" --node-resolve --playwright --browsers chromium --watch",
     "prepare": "husky install",
     "preversion": "npm run build"
