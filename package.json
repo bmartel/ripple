@@ -26,7 +26,7 @@
     "dev": "vite",
     "build": "npm run build:types && npm run build:lib",
     "build:types": "tsc",
-    "build:lib": "microbundle ./index.ts ./worker.ts",
+    "build:lib": "microbundle ./index.ts ./worker.js",
     "preview": "vite preview",
     "lint": "eslint --fix src",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
