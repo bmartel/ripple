@@ -24,7 +24,7 @@
     "build": "npm run build:types && npm run build:lib && npm run build:fix-types",
     "build:types": "tsc",
     "build:fix-types": "cp src/ripple/index.ts src/ripple/index.d.ts",
-    "build:lib": "microbundle ./index.ts ./worker.js",
+    "build:lib": "microbundle ./index.ts ./worker.js --no-compress",
     "preview": "vite preview",
     "lint": "eslint --fix src",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md}\"",
