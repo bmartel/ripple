@@ -202,9 +202,6 @@ export const atomWrite = <T, A extends Atom<T>>(
         if (storage?.key) {
           await store.using(storage.type, storage.store).set(storage!.key!, _current[Keys.Value])
         }
-        if (process.env.NODE_ENV !== 'production') {
-          //
-        }
         atomNotify(atom, skipNotify)
       }
     }, 0)
@@ -273,10 +270,6 @@ export const atomWriteList = <T = any>(
       if (storage?.key) {
         await store.using(storage.type, storage.store).set(storage!.key!, atomListGetListValue(atomList as AtomList))
       }
-      if (process.env.NODE_ENV !== 'production') {
-        //
-      }
-
       atomNotify(atomList, skipNotify)
     }
   }, 0)
